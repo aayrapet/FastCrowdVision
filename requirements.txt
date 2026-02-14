@@ -60,10 +60,10 @@ setuptools==70.2.0
 six==1.17.0
 stack-data==0.6.3
 sympy==1.14.0
-torch==2.10.0+cpu
-torchaudio==2.10.0+cpu
-torchvision==0.25.0+cpu
-tornado==6.5.4
+torch
+torchaudio
+torchvision
+tornado
 traitlets==5.14.3
 typing_extensions==4.15.0
 urllib3==2.6.3
