@@ -23,7 +23,7 @@ class L2norm(nn.Module):
     def forward(self,X):
 
         #sanity checked : normalise over channels for each N,H,W , since [N,C,H,W] is X tensor shape
-        norm=torch.norm(X,dim=1,keepdim=True)
+        norm=torch.norm(X,dim=1,keepdim=True) + 1e-10
         x_hat=X/norm
 
         y_scaled=x_hat*self.gamma.view(1,self.nb_channels,1,1)
