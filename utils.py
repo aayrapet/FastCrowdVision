@@ -90,6 +90,9 @@ def iou(anchors, gtboxes):
 
     iou standard formula for jaccard overlap
 
+    output: 
+        [nb_anchors,nb_gt_boxes] matrix for pairwise iou 
+
     """
     nb_anchors = anchors.shape[0]
     n_gt = gtboxes.shape[0]
@@ -155,3 +158,43 @@ def encode(matches_anchors, anchors, variances):
         ),
         -1,
     )
+
+
+def matching(anch,gt,labels,variances):
+
+    """
+    anch are centered to corner anchors x1,y1,x2,y2  (with values in [0,1]) of dim [nb_of_anchors,4]
+    gt are centered to corner anchors x1,y1,x2,y2 (with values in [0,1]) of dim [nb_gt_boxes,4]
+    """
+
+    # get  [nb_anchors,nb_gt_boxes] matrix of pairwise iou 
+    intersection=iou(anch,gt)
+
+    # for each gt best overlap with anchors 
+    for_gt_id=intersection.argmax(dim=0)
+    # for each anchor best overlap with gt 
+    for_anchor_iou,for_anchor_idx, = intersection.max(dim=1)
+
+
+    for i in range(gt.shape[0]):
+        #for each gtbox look at assigned best anchor 
+        best_assigned_anchor=for_gt_id[i]
+        #for this best assigned anchor the associated gtbox has to be this gtbox at index i 
+        for_anchor_idx[best_assigned_anchor]=i 
+        #to make sure we dont drop this in next lines 
+        for_anchor_iou[best_assigned_anchor]=1
+
+    # we have just forced to make sure every gt box gets one anchor
+
+    #class assign
+    for_anchor_classes=labels[for_anchor_idx]
+    #Background class is 0  (suppose FG  classes are from 1...K)
+    for_anchor_classes[for_anchor_iou<0.5]=0
+    #do same for coords
+    for_anchor_coords=gt[for_anchor_idx]
+    for_anchor_coords[for_anchor_iou<0.5]=0
+    #encode 
+    for_anchor_coords_encoded=encode(for_anchor_coords,anch,variances)
+
+    positives_mask=for_anchor_iou>=0.5
+    return for_anchor_coords_encoded,for_anchor_classes,positives_mask
