@@ -1,66 +1,75 @@
+import torch
+import math as mt
 
-import math as mt 
-def iou(x1A,y1A,x2A,y2A,x1B,y1B,x2B,y2B):
-    a=min(x2A,x2B)
-    b=max(x1B,x1A)
-    d=max(y1A,y1B)
-    c=min(y2A,y2B)
 
-    h=max(0,a-b)
-    w=max(0,c-d)
-    intersection=h*w
-
-    A_area=(x2A-x1A)*(y2A-y1A)
-    B_area=(x2B-x1B)*(y2B-y1B)
-
-    union=A_area+B_area-intersection
-
-    return intersection/union
-def calculate_sk(k,m):
+def calculate_sk(k, m):
     """
-    k is index of ft map , m is total nb of ft map 
+    k is index of ft map , m is total nb of ft map
     (ft map are map participating in prediction)
     k=1....M
     """
-    smin,smax=0.2,0.9
-    if k>m:
+    smin, smax = 0.2, 0.9
+    if k > m:
         return 1
-    return smin+(smax-smin)*(k-1)/(m-1)
+    return smin + (smax - smin) * (k - 1) / (m - 1)
 
 
-def calculate_anchor_w_h1(sk,a):
-    return sk*mt.sqrt(a),sk/mt.sqrt(a)
-
-def calculate_anchor_w_h2(sk,a):
-    return sk/mt.sqrt(a),sk*mt.sqrt(a)
+def calculate_anchor_w_h1(sk, a):
+    return sk * mt.sqrt(a), sk / mt.sqrt(a)
 
 
-def normalised_anchor_coords(i,j,f,w,h):
+def calculate_anchor_w_h2(sk, a):
+    return sk / mt.sqrt(a), sk * mt.sqrt(a)
 
+
+def normalised_anchor_coords(i, j, f, w, h):
     """
     i , j in len(feature map)=0...f-1
     w=w_k_a
     h=h_k_a
     """
-    centerx=(j+0.5)/f
-    centery=(i+0.5)/f
+    centerx = (j + 0.5) / f
+    centery = (i + 0.5) / f
+
+    x2 = min(centerx + w / 2, 1)
+    y2 = min(centery + h / 2, 1)
+
+    x1 = max(centerx - w / 2, 0)
+    y1 = max(centery - h / 2, 0)
+    return x1, y1, x2, y2
 
 
-    x2=min(centerx+w/2,1)
-    y2=min(centery+h/2,1)
-
-    x1=max(centerx-w/2,0)
-    y1=max(centery-h/2,0)
-    return x1,y1,x2,y2
-
-
-def normalised_gt_coords(x1,y1,x2,y2,H,W):
+def normalised_gt_coords(box, H, W):
     """
     normalise gt coords so that they are in [0,1]
-    """
-    return x1/W,y1/H,x2/W,y2/H
 
-def corner_to_center(x1, y1, x2, y2):
+    we do so for iou with anchors that by default are in [0,1]
+    """
+
+    return torch.cat(
+        (
+            (box[:, 0] / W).unsqueeze(1),
+            (box[:, 1] / H).unsqueeze(1),
+            (box[:, 2] / W).unsqueeze(1),
+            (box[:, 3] / H).unsqueeze(1),
+        ),
+        -1,
+    )
+
+
+def center_to_corner(box):
+    """from cx,cy,w,h to x1,y1,x2,y2"""
+
+    return torch.cat(
+        (
+            box[:, :2] - box[:, 2:4] / 2,
+            box[:, :2] + box[:, 2:4] / 2,
+        ),
+        1,
+    )
+
+
+def corner_to_center_scalar(x1, y1, x2, y2):
     w = x2 - x1
     h = y2 - y1
     cx = x1 + w / 2
@@ -68,11 +77,81 @@ def corner_to_center(x1, y1, x2, y2):
     return cx, cy, w, h
 
 
-def center_to_corner(cx, cy, w, h):
-    x1 = cx - w / 2
-    y1 = cy - h / 2
-    x2 = cx + w / 2
-    y2 = cy + h / 2
-    return x1, y1, x2, y2
+def corner_to_center(box):
+    """from x1,y1,x2,y2 to cx,cy,w,h"""
+    return torch.cat(
+        (((box[:, 0:2] + box[:, 2:4]) / 2), (box[:, 2:4] - box[:, 0:2])), dim=1
+    )
 
 
+def iou(anchors, gtboxes):
+    """
+    anchors , gtboxes are in center to corner version i assume for calculation of iou
+
+    iou standard formula for jaccard overlap
+
+    """
+    nb_anchors = anchors.shape[0]
+    n_gt = gtboxes.shape[0]
+
+    a = torch.min(anchors[:, 2].unsqueeze(1), gtboxes[:, 2].unsqueeze(0))
+    b = torch.max(anchors[:, 0].unsqueeze(1), gtboxes[:, 0].unsqueeze(0))
+    d = torch.max(anchors[:, 1].unsqueeze(1), gtboxes[:, 1].unsqueeze(0))
+    c = torch.min(anchors[:, 3].unsqueeze(1), gtboxes[:, 3].unsqueeze(0))
+
+    h = torch.clamp((a - b), min=0)
+    w = torch.clamp((c - d), min=0)
+    intersection = h * w
+
+    A_area = (anchors[:, 2].unsqueeze(1) - anchors[:, 0].unsqueeze(1)) * (
+        anchors[:, 3].unsqueeze(1) - anchors[:, 1].unsqueeze(1)
+    )
+    B_area = (gtboxes[:, 2].unsqueeze(1) - gtboxes[:, 0].unsqueeze(1)) * (
+        gtboxes[:, 3].unsqueeze(1) - gtboxes[:, 1].unsqueeze(1)
+    )
+    union = (
+        A_area + B_area.unsqueeze(0)[:, :, 0].expand(nb_anchors, n_gt) - intersection
+    )
+
+    return intersection / union
+
+
+def decode(encoded, anchors, variances):
+    """
+    decode based on article's formulas
+    """
+
+    return torch.cat(
+        (
+            (encoded[:, 0] * anchors[:, 2] * variances[0] + anchors[:, 0]).unsqueeze(1),
+            (encoded[:, 1] * anchors[:, 3] * variances[0] + anchors[:, 1]).unsqueeze(1),
+            (torch.exp(encoded[:, 2] * variances[1]) * anchors[:, 2]).unsqueeze(1),
+            (torch.exp(encoded[:, 3] * variances[1]) * anchors[:, 3]).unsqueeze(1),
+        ),
+        -1,
+    )
+
+
+def encode(matches_anchors, anchors, variances):
+    """
+    encode matched_anchors  based on article's formulas.
+    This is done for training
+    """
+
+    return torch.cat(
+        (
+            (
+                (matches_anchors[:, 0] - anchors[:, 0]) / (anchors[:, 2] * variances[0])
+            ).unsqueeze(1),
+            (
+                (matches_anchors[:, 1] - anchors[:, 1]) / (anchors[:, 3] * variances[0])
+            ).unsqueeze(1),
+            (torch.log(matches_anchors[:, 2] / anchors[:, 2]) / variances[1]).unsqueeze(
+                1
+            ),
+            (torch.log(matches_anchors[:, 3] / anchors[:, 3]) / variances[1]).unsqueeze(
+                1
+            ),
+        ),
+        -1,
+    )

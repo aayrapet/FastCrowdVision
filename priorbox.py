@@ -1,6 +1,6 @@
 
 from utils import calculate_anchor_w_h1,calculate_anchor_w_h2,calculate_sk
-from utils import normalised_anchor_coords,corner_to_center
+from utils import normalised_anchor_coords,corner_to_center_scalar
 import math as mt
 import torch 
 class AnchorBoxes():
@@ -39,7 +39,7 @@ class AnchorBoxes():
                     for j in range(f):
                 
                         ax1,ay1,ax2,ay2=normalised_anchor_coords(i,j,f,w_k_a,h_k_a)
-                        cx, cy, w, h=corner_to_center(ax1,ay1,ax2,ay2)
+                        cx, cy, w, h=corner_to_center_scalar(ax1,ay1,ax2,ay2)
                         anchors.append([cx, cy, w, h])
 
         anchors_tensor = torch.tensor(anchors, dtype=torch.float32)
