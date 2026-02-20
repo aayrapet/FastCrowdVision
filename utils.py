@@ -160,7 +160,7 @@ def encode(matches_anchors, anchors, variances):
     )
 
 
-def matching(anch,gt,labels,variances):
+def matching(anch,gt,labels,coords_space,labels_space,idx,variances=[0.1,0.2]):
 
     """
     anch are centered to corner anchors x1,y1,x2,y2  (with values in [0,1]) of dim [nb_of_anchors,4]
@@ -196,5 +196,6 @@ def matching(anch,gt,labels,variances):
     #encode 
     for_anchor_coords_encoded=encode(for_anchor_coords,anch,variances)
 
-    positives_mask=for_anchor_iou>=0.5
-    return for_anchor_coords_encoded,for_anchor_classes,positives_mask
+    
+    coords_space[idx,:,:]=for_anchor_coords_encoded
+    labels_space[idx,:,:]=for_anchor_classes.unsqueeze(1)
