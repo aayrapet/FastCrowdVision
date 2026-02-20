@@ -1,2 +1,2 @@
 # FastCrowdVision
-Implementing Vision algorithms for human detection on mobile devices.
+Implementing Vision algorithms for human detection on mobile devices
