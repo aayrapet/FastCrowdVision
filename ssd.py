@@ -10,10 +10,12 @@ with open('config/priorbox.yaml', 'r') as file:
 
 
 class SSD(nn.Module):
-    def __init__(self,base,nb_classes):
+    def __init__(self,base,nb_classes,alpha : float = 1.0 , N_epochs : int = 100 ):
         super().__init__()
         self.features=base
         self.nb_classes=nb_classes
+        self.alpha=alpha
+        self.N_epochs=N_epochs
 
         self.l2norm=L2norm(512,20)
 
@@ -164,5 +166,5 @@ class SSD(nn.Module):
         #for standard ssd300 it is 38*38*4+19*19*6+100*6+25*6+9*4+4
         confs = conf.view(conf.size(0), -1, self.nb_classes)
 
-        return locs,confs,layers_for_prediction
+        return locs,confs
 

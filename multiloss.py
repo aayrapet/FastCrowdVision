@@ -67,11 +67,12 @@ def HNM_max(classifications, labels, neg_pos_ratio=4):
 
 
 class MultiLoss(nn.Module):
-    def __init__(self):
+    def __init__(self,anchors):
         super().__init__()
+        self.anchors=anchors
         pass
     
-    def forward(self,start_index,end_index,anchors,gt_list,labels_list,regressions,classifications):
+    def forward(self,start_index,end_index,gt_list,labels_list,regressions,classifications):
         n_anchors=anchors.shape[0]
 
         N_images=end_index-start_index
@@ -82,7 +83,7 @@ class MultiLoss(nn.Module):
         #execute 2D matching for every image 
  
         for i in range(start_index,end_index):
-            matching(anchors,gt_list[i],labels_list[i],coords_space,labels_space,i)
+            matching(self.anchors,gt_list[i],labels_list[i],coords_space,labels_space,i)
            
         labels_space = labels_space.squeeze(-1)  
         pos = labels_space > 0  
