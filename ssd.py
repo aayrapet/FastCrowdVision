@@ -10,12 +10,13 @@ with open('config/priorbox.yaml', 'r') as file:
 
 
 class SSD(nn.Module):
-    def __init__(self,base,nb_classes,alpha : float = 1.0 , N_epochs : int = 100 ):
+    def __init__(self,base,nb_classes,alpha : float = 1.0 , N_epochs : int = 100,device="cpu" ):
         super().__init__()
         self.features=base
         self.nb_classes=nb_classes
         self.alpha=alpha
         self.N_epochs=N_epochs
+        self.device=device
 
         self.l2norm=L2norm(512,20)
 
@@ -84,7 +85,7 @@ class SSD(nn.Module):
 
         ])
 
-        boxes=AnchorBoxes(config)
+        boxes=AnchorBoxes(config,device=device)
         anchors=boxes.forward()
         self.register_buffer("anchors", anchors)
         convs={}

@@ -70,15 +70,16 @@ class MultiLoss(nn.Module):
     def __init__(self,anchors):
         super().__init__()
         self.anchors=anchors
-        pass
+        
     
     def forward(self,gt_list,labels_list,regressions,classifications):
+        device=regressions.device
         n_anchors=anchors.shape[0]
 
         N_images=end_index-start_index
         
-        coords_space=torch.empty((N_images,n_anchors,4))
-        labels_space=torch.empty((N_images,n_anchors,1)).long()
+        coords_space=torch.empty((N_images,n_anchors,4),requires_grad=False,device=device)
+        labels_space=torch.empty((N_images,n_anchors,1),requires_grad=False,device=device).long()
 
         #execute 2D matching for every image 
  
@@ -90,20 +91,15 @@ class MultiLoss(nn.Module):
         nb_pos = pos.sum()
         
         if nb_pos == 0:
-            # No positive samples in entire batch
-            Loss_loc = torch.tensor(0., device=classifications.device)
-            Loss_conf = torch.tensor(0., device=classifications.device)
             no_pos = True
-            return Loss_loc, Loss_conf, no_pos
+            return 0, 0, no_pos
 
         Loss_loc=F.smooth_l1_loss(regressions[pos],coords_space[pos], reduction='sum')/(nb_pos)
 
         hnm_selected=HNM_max(classifications,## [N, A, C]
         labels_space# [N, A]
-
         )
 
-        
         Loss_conf=F.cross_entropy(
                 classifications.reshape(-1,classifications.size(-1))[hnm_selected],
                 labels_space.reshape(-1)[hnm_selected],

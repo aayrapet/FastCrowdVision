@@ -8,6 +8,7 @@ class AnchorBoxes():
     def __init__(self,config):
         self.aspect_ratios=config["aspect_ratios"]
         self.feature_maps=config["feature_maps"]
+        self.device=device
     
     def __calculate_sk_per_ft_map(self):
         FT_MAP_ANCHOR_W_H={}
@@ -43,7 +44,7 @@ class AnchorBoxes():
                         cx, cy, w, h=corner_to_center_scalar(ax1,ay1,ax2,ay2)
                         anchors.append([cx, cy, w, h])
 
-        anchors_tensor = torch.tensor(anchors, dtype=torch.float32)
+        anchors_tensor = torch.tensor(anchors, dtype=torch.float32,device=self.device)
         return center_to_corner(anchors_tensor)
     
 
