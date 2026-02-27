@@ -5,7 +5,7 @@ import math as mt
 from utils import center_to_corner
 import torch 
 class AnchorBoxes():
-    def __init__(self,config):
+    def __init__(self,config,device):
         self.aspect_ratios=config["aspect_ratios"]
         self.feature_maps=config["feature_maps"]
         self.device=device
