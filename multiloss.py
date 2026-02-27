@@ -72,7 +72,7 @@ class MultiLoss(nn.Module):
         self.anchors=anchors
         pass
     
-    def forward(self,start_index,end_index,gt_list,labels_list,regressions,classifications):
+    def forward(self,gt_list,labels_list,regressions,classifications):
         n_anchors=anchors.shape[0]
 
         N_images=end_index-start_index
@@ -82,7 +82,7 @@ class MultiLoss(nn.Module):
 
         #execute 2D matching for every image 
  
-        for i in range(start_index,end_index):
+        for i in range(len(gt_list)):
             matching(self.anchors,gt_list[i],labels_list[i],coords_space,labels_space,i)
            
         labels_space = labels_space.squeeze(-1)  
