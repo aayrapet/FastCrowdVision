@@ -3,6 +3,7 @@ import yaml
 import torch
 import torch.nn as nn
 from l2norm import L2norm
+import torch.nn.init as init
 
 
 with open('config/priorbox.yaml', 'r') as file:
@@ -62,6 +63,8 @@ class SSD(nn.Module):
             )
         ])
 
+        self.extras.apply(weights_init)
+
         #define kernels for classification to output Feature Map of sieze H,W,ki*nb_classes for all H,W, ki in {4,6} for all i =1 ... |ssd feature maps | , ki is number of anchors for each location of H,W, image 
         self.classification_convolutions=nn.ModuleList([
 
@@ -72,6 +75,8 @@ class SSD(nn.Module):
             nn.Conv2d(256,4*nb_classes,kernel_size=3,padding=1),
             nn.Conv2d(256,4*nb_classes,kernel_size=3,padding=1),
         ])
+
+        self.classification_convolutions.apply(weights_init)
 
         #same but using 4 coordinates for each anchor 
         self.regression_convolutions=nn.ModuleList([
@@ -84,6 +89,8 @@ class SSD(nn.Module):
             nn.Conv2d(256,4*4,kernel_size=3,padding=1),
 
         ])
+
+        self.regression_convolutions.apply(weights_init)
 
         boxes=AnchorBoxes(config,device=device)
         anchors=boxes.forward()
@@ -169,3 +176,11 @@ class SSD(nn.Module):
 
         return locs,confs
 
+
+def xavier(param):
+    init.xavier_uniform_(param)
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        xavier(m.weight)
+        if m.bias is not None:
+            init.constant_(m.bias,0)
