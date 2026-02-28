@@ -4,13 +4,13 @@ from torchvision import transforms
 import torch
 import torch.nn as nn
 
-class DataSSD300(torch.utils.data.Dataset):
 
+class DataSSD300(torch.utils.data.Dataset):
     """
     Load resized to 300*300 resolution image
 
     return:
-        img_tensor tensor of resized image 
+        img_tensor tensor of resized image
         label_list tensor of labels
         gt_box tensor of gt boxes
 
@@ -18,56 +18,58 @@ class DataSSD300(torch.utils.data.Dataset):
         len(gt_box)=len(label_list)
 
     """
-    def __init__(self,img_dir,lbl_dir,gt_normalised : bool = True):
+
+    def __init__(self, img_dir, lbl_dir, gt_normalised: bool = True):
         self.images = sorted(glob.glob(img_dir + "/*.jpg"))
         self.labels = sorted(glob.glob(lbl_dir + "/*.txt"))
-        self.transform = transforms.Compose([
-            transforms.Resize((300, 300)),
-            transforms.ToTensor()            
-        ])
-        self.gt_normalised=gt_normalised
+        self.transform = transforms.Compose(
+            [transforms.Resize((300, 300)), transforms.ToTensor()]
+        )
+        self.gt_normalised = gt_normalised
 
     def __len__(self):
         return len(self.images)
 
-    def __getitem__(self,idx):
+    def __getitem__(self, idx):
 
-        #images
+        # images
         img = Image.open(self.images[idx]).convert("RGB")
 
         if not self.gt_normalised:
-            W,H=img.size
+            W, H = img.size
         else:
-            H,W=1,1
+            H, W = 1, 1
         img_tensor = self.transform(img)
 
         # labels and gt boxes
         with open(self.labels[idx]) as f:
-            gt_box=[]
-            label_list=[]
+            gt_box = []
+            label_list = []
             for line in f:
-                label,cx,cy,w,h=map(float,line.split())
-                
-                gt_box.append((cx/W,cy/H,w/W,h/H))
+                label, cx, cy, w, h = map(float, line.split())
 
-                label_list.append(label+1)#yolo labels start at 0, my ssd start at 1, O is BG
-            gt_box=center_to_corner(torch.tensor(gt_box, dtype=torch.float32)*300)
+                gt_box.append((cx / W, cy / H, w / W, h / H))
 
-            label_list=torch.tensor(label_list, dtype=torch.int64)
+                label_list.append(
+                    label + 1
+                )  # yolo labels start at 0, my ssd start at 1, O is BG
+            gt_box = center_to_corner(torch.tensor(gt_box, dtype=torch.float32) * 300)
 
-        return img_tensor,label_list,gt_box
+            label_list = torch.tensor(label_list, dtype=torch.int64)
+
+        return img_tensor, label_list, gt_box
 
 
-    
 class DataSplitter(nn.Module):
     """
     Split into training, validation, testing dataloaders
     """
-    def __init__(self,batch_size: int, test_size : float, val_size : float ):
 
-        self.test_size=test_size
-        self.val_size=val_size
-        self.batch_size=batch_size
+    def __init__(self, batch_size: int, test_size: float, val_size: float):
+
+        self.test_size = test_size
+        self.val_size = val_size
+        self.batch_size = batch_size
 
     @staticmethod
     def collate_ssd(batch):
@@ -75,37 +77,37 @@ class DataSplitter(nn.Module):
         images = torch.stack(images, dim=0)
         return images, list(labels), list(boxes)
 
-    def forward(self,dataset : DataSSD300):
+    def forward(self, dataset: DataSSD300):
 
-        #https://stackoverflow.com/questions/65138643/examples-or-explanations-of-pytorch-dataloaders
+        # https://stackoverflow.com/questions/65138643/examples-or-explanations-of-pytorch-dataloaders
 
-        test_amount, val_amount = int(len(dataset)*self.test_size),int(len(dataset)*self.val_size)
+        test_amount, val_amount = int(len(dataset) * self.test_size), int(
+            len(dataset) * self.val_size
+        )
 
         # this function will automatically randomly split your dataset but you could also implement the split yourself
-        train_set, val_set, test_set = torch.utils.data.random_split(dataset, [
-                    (len(dataset) - (test_amount + val_amount)), 
-                    test_amount, 
-                    val_amount
-        ])
-
+        train_set, val_set, test_set = torch.utils.data.random_split(
+            dataset,
+            [(len(dataset) - (test_amount + val_amount)), test_amount, val_amount],
+        )
 
         train_dataloader = torch.utils.data.DataLoader(
-                    train_set,
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    collate_fn=self.collate_ssd
+            train_set,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=self.collate_ssd,
         )
         val_dataloader = torch.utils.data.DataLoader(
-                    val_set,
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    collate_fn=self.collate_ssd
+            val_set,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=self.collate_ssd,
         )
         test_dataloader = torch.utils.data.DataLoader(
-                    test_set,
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    collate_fn=self.collate_ssd
+            test_set,
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=self.collate_ssd,
         )
 
-        return train_dataloader,val_dataloader,test_dataloader
+        return train_dataloader, val_dataloader, test_dataloader

@@ -4,40 +4,45 @@ import torch.nn.functional as F
 from utils import matching
 
 
-
-def HNM_mine(classifications_reshaped,labels_reshaped):
-
+def HNM_mine(classifications_reshaped, labels_reshaped):
     """
-    Input: 
+    Input:
 
-    reshaped classifications; shape [N_anhcores(8732),N_classes] 
-    reshaped labels; shape [N_anhcores] , one vector containing classes 
+    reshaped classifications; shape [N_anhcores(8732),N_classes]
+    reshaped labels; shape [N_anhcores] , one vector containing classes
 
     Output:
 
     all; shape [positive anchors + top negative anchors]
 
-    For more details : https://arxiv.org/pdf/1512.02325, page 6 
+    For more details : https://arxiv.org/pdf/1512.02325, page 6
 
     """
-    losses=F.cross_entropy(classifications_reshaped,labels_reshaped,reduction="none") 
+    losses = F.cross_entropy(
+        classifications_reshaped, labels_reshaped, reduction="none"
+    )
 
-    negative_indexes=torch.nonzero(labels_reshaped==0,as_tuple=True,)[0]
-    positive_indexes=torch.nonzero(labels_reshaped>0,as_tuple=True,)[0]
-    nb_positives=positive_indexes.numel()
+    negative_indexes = torch.nonzero(
+        labels_reshaped == 0,
+        as_tuple=True,
+    )[0]
+    positive_indexes = torch.nonzero(
+        labels_reshaped > 0,
+        as_tuple=True,
+    )[0]
+    nb_positives = positive_indexes.numel()
 
+    _, indx = losses[negative_indexes].sort(descending=True)
 
-    _,indx=losses[negative_indexes].sort(descending=True)
+    negative_indexes = negative_indexes[indx[: min(nb_positives * 4, len(indx))]]
 
-    negative_indexes=negative_indexes[indx[:min(nb_positives*4,len(indx))]]
-    
-    all=torch.cat([negative_indexes, positive_indexes], dim=0)
+    all = torch.cat([negative_indexes, positive_indexes], dim=0)
     return all
 
-def HNM_max(classifications, labels, neg_pos_ratio=4):
 
+def HNM_max(classifications, labels, neg_pos_ratio=4):
     """
-    vectorised version of HNM_mine, for all images in a batch 
+    vectorised version of HNM_mine, for all images in a batch
     classifications: [N, A, C]
     labels:          [N, A]
     returns:         flat indices into (N*A)
@@ -45,13 +50,10 @@ def HNM_max(classifications, labels, neg_pos_ratio=4):
 
     N, A, C = classifications.shape
 
-    #compute per-anchor loss (keep [N, A])
+    # compute per-anchor loss (keep [N, A])
     loss_c = F.cross_entropy(
-        classifications.view(-1, C),
-        labels.view(-1),
-        reduction="none"
+        classifications.view(-1, C), labels.view(-1), reduction="none"
     ).view(N, A)
-
 
     pos = labels > 0
     loss_c[pos] = 0
@@ -62,53 +64,57 @@ def HNM_max(classifications, labels, neg_pos_ratio=4):
     num_neg = torch.clamp(neg_pos_ratio * num_pos, max=A - 1)
 
     neg = idx_rank < num_neg.expand_as(idx_rank)
-    selected = (pos | neg)
+    selected = pos | neg
     return selected.view(-1).nonzero(as_tuple=True)[0]
 
 
 class MultiLoss(nn.Module):
-    def __init__(self,anchors):
+    def __init__(self, anchors):
         super().__init__()
-        self.anchors=anchors
-        
-    
-    def forward(self,gt_list,labels_list,regressions,classifications):
-        device=regressions.device
-        n_anchors=self.anchors.shape[0]
+        self.anchors = anchors
 
-        N_images=len(gt_list)
-        
-        coords_space=torch.empty((N_images,n_anchors,4),requires_grad=False,device=device)
-        labels_space=torch.empty((N_images,n_anchors,1),requires_grad=False,device=device).long()
+    def forward(self, gt_list, labels_list, regressions, classifications):
+        device = regressions.device
+        n_anchors = self.anchors.shape[0]
 
-        #execute 2D matching for every image 
- 
+        N_images = len(gt_list)
+
+        coords_space = torch.empty(
+            (N_images, n_anchors, 4), requires_grad=False, device=device
+        )
+        labels_space = torch.empty(
+            (N_images, n_anchors, 1), requires_grad=False, device=device
+        ).long()
+
+        # execute 2D matching for every image
+
         for i in range(N_images):
-            matching(self.anchors,gt_list[i],labels_list[i],coords_space,labels_space,i)
-           
-        labels_space = labels_space.squeeze(-1)  
-        pos = labels_space > 0  
+            matching(
+                self.anchors, gt_list[i], labels_list[i], coords_space, labels_space, i
+            )
+
+        labels_space = labels_space.squeeze(-1)
+        pos = labels_space > 0
         nb_pos = pos.sum()
-        
+
         if nb_pos == 0:
             no_pos = True
             return 0, 0, no_pos
 
-        Loss_loc=F.smooth_l1_loss(regressions[pos],coords_space[pos], reduction='sum')/(nb_pos)
+        Loss_loc = F.smooth_l1_loss(
+            regressions[pos], coords_space[pos], reduction="sum"
+        ) / (nb_pos)
 
-        hnm_selected=HNM_max(classifications,## [N, A, C]
-        labels_space# [N, A]
-        )
+        hnm_selected = HNM_max(classifications, labels_space)  ## [N, A, C]  # [N, A]
 
-        Loss_conf=F.cross_entropy(
-                classifications.reshape(-1,classifications.size(-1))[hnm_selected],
+        Loss_conf = (
+            F.cross_entropy(
+                classifications.reshape(-1, classifications.size(-1))[hnm_selected],
                 labels_space.reshape(-1)[hnm_selected],
-                reduction="sum"
-        ) / nb_pos
-        no_pos=False
-        
-        
-        return Loss_loc,Loss_conf,no_pos
+                reduction="sum",
+            )
+            / nb_pos
+        )
+        no_pos = False
 
-
-
+        return Loss_loc, Loss_conf, no_pos
