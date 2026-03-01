@@ -101,9 +101,11 @@ def train(
                     "model_state": model.state_dict(),
                     "hyperparameters": {
                         "alpha": model.alpha,
-                        "optimizer": optimizer.state_dict(),
-                        "val_loss": best_val_loss,
+                        "N_epochs": model.N_epochs
                     },
+                    "val_loss": best_val_loss,
+                    "optimizer": optimizer.state_dict()
+                       
                 },
                 f"{modelname}.pth",
             )
@@ -120,11 +122,9 @@ def train(
     return "model trained "
 
 
-def load_model(link, device, Model):
+def load_model(link, device, model):
     loaded_state = torch.load(link, map_location=device)
-    hyperparameters = loaded_state["hyperparameters"]
-    model = Model(**hyperparameters)
-    model.load_state_dict(loaded_state["hyperparameters"])
+    model.load_state_dict(loaded_state["model_state"])
     model.to(device)
     model.eval()
     return model

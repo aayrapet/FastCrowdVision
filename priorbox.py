@@ -45,7 +45,7 @@ class AnchorBoxes():
                         anchors.append([cx, cy, w, h])
 
         anchors_tensor = torch.tensor(anchors, dtype=torch.float32)
-        return center_to_corner(anchors_tensor)
+        return anchors_tensor
     
 
 if __name__=="__main__":

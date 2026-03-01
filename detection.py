@@ -20,7 +20,7 @@ class Detection(nn.Module):
 
     def forward(self, classifications, regressions):
         N_images = classifications.shape[0]
-        output = torch.zeros(N_images, self.nb_classes, self.top_k, 6)
+        output = torch.zeros(N_images, self.nb_classes, self.top_k, 6, device=classifications.device)
         for i in range(N_images):
             image_class = classifications[i, :, :]
             image_regress = regressions[i, :, :]
@@ -43,14 +43,15 @@ class Detection(nn.Module):
 
                 nms_idx = nms(selected_bbox, selected_class_probas, self.nms_thr)
 
-                output[i, j, : self.top_k, :] = torch.cat(
+                upper_bound=min(self.top_k,selected_bbox[nms_idx].shape[0])
+                output[i, j, : upper_bound, :] = torch.cat(
                     (
                         #select top k bboxes per class and probas 
-                        selected_bbox[nms_idx][: self.top_k, :],
-                        selected_class_probas[nms_idx][: self.top_k].unsqueeze(1),
+                        selected_bbox[nms_idx][: upper_bound, :],
+                        selected_class_probas[nms_idx][: upper_bound].unsqueeze(1),
                         #indicate class label also 
                         torch.ones(
-                            self.top_k, dtype=torch.int64, device=regressions.device
+                            upper_bound, dtype=torch.int64, device=regressions.device
                         ).unsqueeze(1)
                         * j,
                     ),

@@ -86,14 +86,16 @@ def corner_to_center(box):
 
 def iou(anchors, gtboxes):
     """
-    anchors , gtboxes are in center to corner version i assume for calculation of iou
-
+    gtboxes are in center to corner version i assume for calculation of iou
+    anchors are in corner to center version 
     iou standard formula for jaccard overlap
 
     output: 
         [nb_anchors,nb_gt_boxes] matrix for pairwise iou 
 
     """
+
+    anchors = center_to_corner(anchors)
     nb_anchors = anchors.shape[0]
     n_gt = gtboxes.shape[0]
 
@@ -139,6 +141,8 @@ def encode(matches_anchors, anchors, variances):
     """
     encode matched_anchors  based on article's formulas.
     This is done for training
+    works on center to corner version
+    cx cy w h  
     """
 
     return torch.cat(
@@ -194,6 +198,8 @@ def matching(anch,gt,labels,coords_space,labels_space,idx,variances=[0.1,0.2]):
     for_anchor_coords=gt[for_anchor_idx]
     for_anchor_coords[for_anchor_iou<0.5]=0
     #encode 
+    for_anchor_coords = corner_to_center(for_anchor_coords) 
+    #note that for_anchor_coords are gt coords in center to corner version already 
     for_anchor_coords_encoded=encode(for_anchor_coords,anch,variances)
 
     

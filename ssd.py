@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from l2norm import L2norm
 import torch.nn.init as init
-
+from detection import Detection
 
 with open("config/priorbox.yaml", "r") as file:
     config = yaml.safe_load(file)

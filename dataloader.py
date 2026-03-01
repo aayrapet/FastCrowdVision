@@ -2,6 +2,7 @@ from utils import center_to_corner
 from PIL import Image
 from torchvision import transforms
 import torch
+import glob
 import torch.nn as nn
 
 
@@ -53,7 +54,9 @@ class DataSSD300(torch.utils.data.Dataset):
                 label_list.append(
                     label + 1
                 )  # yolo labels start at 0, my ssd start at 1, O is BG
-            gt_box = center_to_corner(torch.tensor(gt_box, dtype=torch.float32) * 300)
+            gt_box = center_to_corner(torch.tensor(gt_box, dtype=torch.float32) )
+            #just to be sure we clamp to [0,1]
+            gt_box = gt_box.clamp(min=0, max=1)
 
             label_list = torch.tensor(label_list, dtype=torch.int64)
 
@@ -66,7 +69,7 @@ class DataSplitter(nn.Module):
     """
 
     def __init__(self, batch_size: int, test_size: float, val_size: float):
-
+        super().__init__()
         self.test_size = test_size
         self.val_size = val_size
         self.batch_size = batch_size
@@ -86,7 +89,7 @@ class DataSplitter(nn.Module):
         )
 
         # this function will automatically randomly split your dataset but you could also implement the split yourself
-        train_set, val_set, test_set = torch.utils.data.random_split(
+        train_set, test_set,val_set = torch.utils.data.random_split(
             dataset,
             [(len(dataset) - (test_amount + val_amount)), test_amount, val_amount],
         )
