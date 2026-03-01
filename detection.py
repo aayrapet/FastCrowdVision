@@ -51,7 +51,7 @@ class Detection(nn.Module):
                         selected_class_probas[nms_idx][: upper_bound].unsqueeze(1),
                         #indicate class label also 
                         torch.ones(
-                            upper_bound, dtype=torch.int64, device=regressions.device
+                            upper_bound, dtype=torch.float32, device=regressions.device
                         ).unsqueeze(1)
                         * j,
                     ),

@@ -36,13 +36,13 @@ class AnchorBoxes():
 
         for k,f in enumerate(self.feature_maps,start=1):
 
-            for w_k_a,h_k_a in FT_MAP_ANCHOR_W_H[k]:
-                for i in range(f):
+            for i in range(f):
                     for j in range(f):
-                
-                        ax1,ay1,ax2,ay2=normalised_anchor_coords(i,j,f,w_k_a,h_k_a)
-                        cx, cy, w, h=corner_to_center_scalar(ax1,ay1,ax2,ay2)
-                        anchors.append([cx, cy, w, h])
+
+                        for w_k_a,h_k_a in FT_MAP_ANCHOR_W_H[k]:
+                                    ax1,ay1,ax2,ay2=normalised_anchor_coords(i,j,f,w_k_a,h_k_a)
+                                    cx, cy, w, h=corner_to_center_scalar(ax1,ay1,ax2,ay2)
+                                    anchors.append([cx, cy, w, h])
 
         anchors_tensor = torch.tensor(anchors, dtype=torch.float32)
         return anchors_tensor
