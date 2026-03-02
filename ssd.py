@@ -169,7 +169,7 @@ class SSD(nn.Module):
 
             X = self.features[idx](X)
 
-            if idx in self.convs and self.convs[idx] == "4_3":       
+            if (idx-1) in self.convs and self.convs[idx-1] == "4_3":       
                 layers_for_prediction.append(self.l2norm(X))
 
         for idx in range(len(self.extras)):

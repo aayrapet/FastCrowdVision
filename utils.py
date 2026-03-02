@@ -1,5 +1,27 @@
+import os
 import torch
+import random
+import numpy as np
 import math as mt
+
+
+def setup_device_and_seed(seed=42):
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
+    torch.use_deterministic_algorithms(True)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    return device
 
 
 def calculate_sk(k, m):
