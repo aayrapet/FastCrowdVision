@@ -62,6 +62,7 @@ class Detection(nn.Module):
         output = output.reshape(N_images, self.nb_classes * self.top_k, 6)
         #based on 5th column which is probability 
         scores = output[:, :, -2]
+       
         _, idx = scores.topk(self.top_k, dim=1)
 
         top = output.gather(
