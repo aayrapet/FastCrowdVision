@@ -30,9 +30,8 @@ def evaluation(test_output,labels_list,gt_box_list,metric):
         })
         targets.append({
             "boxes" : gt_box_list[i],
-            "labels" : labels_list[i]
+            "labels" : labels_list[i]-1
         })
-
 
     metric.update(preds, targets)
  

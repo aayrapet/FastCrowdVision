@@ -16,13 +16,13 @@ class SSD(nn.Module):
         base,
         nb_classes,
         phase,
-        alpha=1,
         prob_thr,
         nms_thr,
         top_k,
         variances,
         N_epochs: int = 100,
         device="cpu",
+        alpha=1,
     ):
         super().__init__()
         self.features = base
