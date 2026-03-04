@@ -17,10 +17,10 @@ class SSD(nn.Module):
         nb_classes,
         phase,
         alpha=1,
-        prob_thr=None,
-        nms_thr=None,
-        top_k=None,
-        variances=None,
+        prob_thr,
+        nms_thr,
+        top_k,
+        variances,
         N_epochs: int = 100,
         device="cpu",
     ):
@@ -143,23 +143,15 @@ class SSD(nn.Module):
                 i = i + 1
         self.convs = convs
 
-        if phase == "test":
-            if (
-                prob_thr is None
-                or nms_thr is None
-                or top_k is None
-                or variances is None
-            ):
-                raise ValueError("need to set them ")
-
-            self.detection = Detection(
+        
+        self.detection = Detection(
                 nb_classes=nb_classes,
                 prob_thr=prob_thr,
                 nms_thr=nms_thr,
                 top_k=top_k,
                 variances=variances,
                 anchors=self.anchors,
-            )
+        )
 
     def forward(self, X):
         layers_for_prediction = []
@@ -226,7 +218,7 @@ class SSD(nn.Module):
             return locs, confs
         elif self.phase == "test":
             output = self.detection(confs, locs)
-            return output
+            return locs, confs,output
 
 
 def xavier(param):
