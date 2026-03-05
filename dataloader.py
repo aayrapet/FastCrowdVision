@@ -4,6 +4,7 @@ from torchvision import transforms
 import torch
 import glob
 import torch.nn as nn
+from  torch.utils.data.distributed import DistributedSampler
 
 
 class DataSSD300(torch.utils.data.Dataset):
@@ -68,11 +69,12 @@ class DataSplitter(nn.Module):
     Split into training, validation, testing dataloaders
     """
 
-    def __init__(self, batch_size: int, test_size: float, val_size: float):
+    def __init__(self, batch_size: int, test_size: float, val_size: float,multigpu =False):
         super().__init__()
         self.test_size = test_size
         self.val_size = val_size
         self.batch_size = batch_size
+        self.multigpu=multigpu
 
     @staticmethod
     def collate_ssd(batch):
@@ -97,20 +99,23 @@ class DataSplitter(nn.Module):
         train_dataloader = torch.utils.data.DataLoader(
             train_set,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False if self.multigpu else True,
             collate_fn=self.collate_ssd,
+            sampler=DistributedSampler(train_set) if self.multigpu else None
         )
         val_dataloader = torch.utils.data.DataLoader(
             val_set,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False if self.multigpu else True,
             collate_fn=self.collate_ssd,
+            sampler=DistributedSampler(val_set) if self.multigpu else None
         )
         test_dataloader = torch.utils.data.DataLoader(
             test_set,
             batch_size=self.batch_size,
-            shuffle=True,
+            shuffle=False if self.multigpu else True,
             collate_fn=self.collate_ssd,
+            sampler=DistributedSampler(test_set) if self.multigpu else None
         )
 
         return train_dataloader, val_dataloader, test_dataloader
