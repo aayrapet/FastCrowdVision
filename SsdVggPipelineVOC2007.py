@@ -10,7 +10,7 @@ from torchvision import models
 from torchvision.models import VGG16_Weights
 from dataloader import DataSSD300, DataSplitter
 import argparse
-
+from train import load_model
 
 parser = argparse.ArgumentParser(
     description="Single Shot MultiBox Detector Training With Pytorch"
@@ -123,6 +123,11 @@ parser.add_argument(
     "--momentum", default=0.9, type=float, help="momentum for SGD optimizer"
 )
 
+
+parser.add_argument(
+    "--model_already_trained", default=None, type=str, help="path to model already trained, can be used to continue training"
+)
+
 args = parser.parse_args()
 
 
@@ -150,6 +155,7 @@ def pipeline(rank: int, nb_gpus: int, base):
     )
     train_dataloader, val_dataloader, test_dataloader = splitter(someloader)
 
+   
     model = SSD(
         base,
         nb_classes=args.nb_classes,
@@ -162,6 +168,7 @@ def pipeline(rank: int, nb_gpus: int, base):
         N_epochs=args.N_epochs,
         device=device,
     ).to(device)
+    epoch = 0
 
     optimizer = torch.optim.SGD(
         model.parameters(),
@@ -169,6 +176,23 @@ def pipeline(rank: int, nb_gpus: int, base):
         weight_decay=args.weight_decay,
         momentum=args.momentum,
     )
+    best_val_loss = float("inf")
+    wandbid=None
+    if args.model_already_trained is not None:
+        try:
+            #attention i suppose models are compatible in all other hyperparameters
+            #i will propose a function to check if models are compatible in all other hyperparameters later
+            model_loaded, epoch_loaded, optimizer_loaded, best_val_loss_loaded, wandbid_loaded = load_model(args.model_already_trained, device, model, optimizer)
+            model = model_loaded
+            epoch = epoch_loaded
+            optimizer = optimizer_loaded
+            best_val_loss = best_val_loss_loaded
+            wandbid=wandbid_loaded
+        except Exception as e:
+            print(f"Error loading model: {e}")
+            print("Starting from scratch,sorry")
+            
+    
     train(
         model,
         optimizer,
@@ -177,6 +201,9 @@ def pipeline(rank: int, nb_gpus: int, base):
         modelname=args.modelname,
         gamma=args.gamma,
         lr_schedule_epochs=args.lr_schedule_epochs,
+        start_epoch=epoch,
+        best_val_loss=best_val_loss,
+        wandbid=wandbid
     )
     if nb_gpus > 1:
         destroy_process_group()

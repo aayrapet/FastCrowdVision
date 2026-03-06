@@ -65,6 +65,8 @@ def train(
     epoch_verbose: int = 5,
     early_stop_iter=30,
     start_epoch=0,
+    best_val_loss=float("inf"),
+    wandbid=None
 ):
     
  
@@ -85,6 +87,8 @@ def train(
                 entity=entity,
                 # Set the wandb project where this run will be logged.
                 project=project,
+                id=wandbid,
+                resume = "allow" if wandbid is not None else None,
                 # Track hyperparameters and run metadata.
                 config={
                     "learning_rate": optimizer.param_groups[0]["lr"],
@@ -102,6 +106,8 @@ def train(
                 # Set the wandb project where this run will be logged.
                 project=project,
                 # Track hyperparameters and run metadata.
+                id=wandbid,
+                resume = "allow" if wandbid is not None else None,
                 config={
                     "learning_rate": optimizer.param_groups[0]["lr"],
                     "modelname": modelname,
@@ -110,7 +116,7 @@ def train(
                 },
             )
 
-    best_val_loss = float("inf")
+    
     train_losses = []
     val_losses = []
 
@@ -168,7 +174,7 @@ def train(
             print(f"Epoch [{epoch:03d}] | Train Loss: {train_loss:.6f}")
 
         model.eval()
-        eps = 10 ** (-2)
+        eps = 10 ** (-3)
         val_loss = 0
         val_samples = 0
 
@@ -218,6 +224,7 @@ def train(
                     "optimizer": optimizer.state_dict(),
                     "map_score": map_score,
                     "epoch": epoch,
+                    "wandb_run_id": run.id if run is not None else None,
                 }
             )
             if multigpu:
@@ -272,12 +279,18 @@ def train(
         run.finish()
 
 
-def load_model(link, device, model):
+def load_model(link, device, model,optimizer):
     loaded_state = torch.load(link, map_location=device)
     model.load_state_dict(loaded_state["model_state"])
     model.to(device)
-    model.eval()
-    return model
+    old_lr=optimizer.param_groups[0]["lr"]
+    optimizer.load_state_dict(loaded_state["optimizer"])
+    wandbid=loaded_state.get("wandb_run_id",None)
+    #we update the lr as i did schedule lr and it did not work well 
+    for param_group in optimizer.param_groups:
+            param_group["lr"] = old_lr
+
+    return model , loaded_state["epoch"], optimizer,loaded_state["val_loss"],wandbid
 
 
 def predict(model, image):

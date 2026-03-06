@@ -5,6 +5,7 @@ __pycache__/
 my_env/
 
 .env
+test.ipynb
 # C extensions
 *.so
 data/
