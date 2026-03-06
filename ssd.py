@@ -21,7 +21,7 @@ class SSD(nn.Module):
         top_k,
         variances,
         N_epochs: int = 100,
-        device="cpu",
+
         alpha=1,
     ):
         super().__init__()
@@ -29,7 +29,7 @@ class SSD(nn.Module):
         self.nb_classes = nb_classes
         self.alpha = alpha
         self.N_epochs = N_epochs
-        self.device = device
+
         self.phase = phase
         self.prob_thr = prob_thr
         self.nms_thr = nms_thr

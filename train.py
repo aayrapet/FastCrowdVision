@@ -4,6 +4,7 @@ from multiloss import MultiLoss
 from eval import evaluation
 from ssd import SSD
 from torchmetrics.detection import MeanAveragePrecision
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 def train(
     model,
@@ -21,8 +22,8 @@ def train(
     multigpu=False
     model_attributes=model
     if model.device!=torch.device("cpu"):
-        if torch.cuda.device_count()>0:
-                device_id=f"{model.device.type}:{model.device.index}"
+        if torch.cuda.device_count()>1:
+                device_id=model.device.index
                 multigpu=True
                 model=DDP(model,device_ids=[device_id])
                 model_attributes=model.module
@@ -41,6 +42,13 @@ def train(
     counter_early_stop = 0
 
     for epoch in range(start_epoch,N_epochs):
+
+        if multigpu:
+            #https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.distributed.DistributedSampler
+            #note that shuffling is needed only for training , val we dont care
+            train_dataloader.sampler.set_epoch(epoch)
+           
+
         model_attributes.phase="train"
         model.train()
         train_loss = 0
@@ -56,11 +64,12 @@ def train(
                 gt_box_list, labels_list, regressions, classifications
             )
             if no_pos:
-                # no pisitives identified in a batch , skip this iteration
-                continue
-            total_loss = Loss_conf + model_attributes.alpha * Loss_loc
-            train_loss = train_loss + total_loss.item() * N_images
-            train_samples = train_samples + N_images
+                total_loss = torch.tensor(0.0, device=model_device, requires_grad=True)
+            else:
+
+                total_loss = Loss_conf + model_attributes.alpha * Loss_loc
+                train_loss = train_loss + total_loss.item() * N_images
+                train_samples = train_samples + N_images
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
@@ -121,14 +130,14 @@ def train(
             best_val_loss = val_loss
             if multigpu:
 
-                if model.device.index==0:
+                if model_device.index == 0:
 
                     torch.save(
                         {
                             "model_state": model_attributes.state_dict(),
                             "hyperparameters": {
-                                "alpha": model_attributes.state_dict().alpha,
-                                "N_epochs": model_attributes.state_dict().N_epochs
+                                "alpha": model_attributes.alpha,
+                                "N_epochs": model_attributes.N_epochs
                             },
                             "val_loss": best_val_loss,
                             "optimizer": optimizer.state_dict(),
@@ -144,8 +153,8 @@ def train(
                         {
                             "model_state": model_attributes.state_dict(),
                             "hyperparameters": {
-                                "alpha": model_attributes.state_dict().alpha,
-                                "N_epochs": model_attributes.state_dict().N_epochs
+                                "alpha": model_attributes.alpha,
+                                "N_epochs": model_attributes.N_epochs
                             },
                             "val_loss": best_val_loss,
                             "optimizer": optimizer.state_dict(),
