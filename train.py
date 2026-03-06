@@ -17,7 +17,7 @@ project = os.getenv("PROJECT")
 
 
 def logwandb(
-    multigpu, model_device, run, train_loss, val_loss, map_score, early_stop, epoch
+    epoch,multigpu, model_device, run, train_loss, val_loss, map_score, early_stop
 ):
     """
     saving logs with multiple gpus
@@ -48,7 +48,8 @@ def logwandb(
 
 def adjust_lr_rate(optimizer, nb_times, gamma):
     # https://stackoverflow.com/questions/48324152/how-to-change-the-learning-rate-of-an-optimizer-at-any-given-moment-no-lr-sched
-    lr = lr * (gamma**nb_times)
+    lr = optimizer.param_groups[0]["lr"]
+    lr = lr * (gamma)#**nb_times
     for param_group in optimizer.param_groups:
         param_group["lr"] = lr
 
@@ -65,20 +66,8 @@ def train(
     early_stop_iter=30,
     start_epoch=0,
 ):
-
-    run = wandb.init(
-        # Set the wandb entity where your project will be logged (generally your team name).
-        entity=entity,
-        # Set the wandb project where this run will be logged.
-        project=project,
-        # Track hyperparameters and run metadata.
-        config={
-            "learning_rate": optimizer.param_groups[0]["lr"],
-            "modelname": modelname,
-            "lr_schedule_epochs": lr_schedule_epochs,
-            "epochs": model.N_epochs,
-        },
-    )
+    
+ 
     model_device = next(model.parameters()).device
     metric = MeanAveragePrecision().to(model_device)
     multigpu = False
@@ -89,6 +78,37 @@ def train(
             multigpu = True
             model = DDP(model, device_ids=[device_id])
             model_attributes = model.module
+    if multigpu : 
+        if model_device.index == 0:
+            run = wandb.init(
+                # Set the wandb entity where your project will be logged (generally your team name).
+                entity=entity,
+                # Set the wandb project where this run will be logged.
+                project=project,
+                # Track hyperparameters and run metadata.
+                config={
+                    "learning_rate": optimizer.param_groups[0]["lr"],
+                    "modelname": modelname,
+                    "lr_schedule_epochs": lr_schedule_epochs,
+                    "epochs": model_attributes.N_epochs,
+                },
+            )
+        else:
+            run = None
+    else:
+        run = wandb.init(
+                # Set the wandb entity where your project will be logged (generally your team name).
+                entity=entity,
+                # Set the wandb project where this run will be logged.
+                project=project,
+                # Track hyperparameters and run metadata.
+                config={
+                    "learning_rate": optimizer.param_groups[0]["lr"],
+                    "modelname": modelname,
+                    "lr_schedule_epochs": lr_schedule_epochs,
+                    "epochs": model_attributes.N_epochs,
+                },
+            )
 
     best_val_loss = float("inf")
     train_losses = []
@@ -198,7 +218,7 @@ def train(
                     "optimizer": optimizer.state_dict(),
                     "map_score": map_score,
                     "epoch": epoch,
-                },
+                }
             )
             if multigpu:
 
@@ -212,7 +232,7 @@ def train(
 
                 torch.save(
                     results,
-                    f"{modelname}.pth",
+                    f"{modelname}.pth"
                 )
 
         else:
@@ -248,8 +268,8 @@ def train(
                 map_score,
                 False,#early stop 
             )
-
-    run.finish()
+    if run is not None:
+        run.finish()
 
 
 def load_model(link, device, model):
