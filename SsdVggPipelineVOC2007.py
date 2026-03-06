@@ -171,7 +171,7 @@ def pipeline(rank: int, nb_gpus: int, base):
     if nb_gpus > 1:
         destroy_process_group()
 
-if __name__="__main__":
+if __name__=="__main__":
 
     vgg = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
     vgg[16] = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
