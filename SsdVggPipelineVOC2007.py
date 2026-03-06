@@ -64,12 +64,7 @@ parser.add_argument(
     help="prct of dataset used for validation set  ",
 )
 
-parser.add_argument(
-    "--val_size",
-    default=0.15,
-    type=float,
-    help="prct of dataset used for validation set  ",
-)
+
 parser.add_argument(
     "--alpha",
     default=1.0,
@@ -96,12 +91,7 @@ parser.add_argument(
     help="top_k value used for training of ssd, refer to article for more details  ",
 )
 
-parser.add_argument(
-    "--top_k",
-    default=200,
-    type=int,
-    help="top_k value used for training of ssd, refer to article for more details  ",
-)
+
 
 parser.add_argument(
     "--variances",
@@ -156,7 +146,6 @@ def pipeline(rank: int, nb_gpus: int, base):
         nb_classes=args.nb_classes,
         phase="train",
         alpha=args.alpha,
-        device=device,
         prob_thr=args.prob_thr,
         nms_thr=args.nms_thr,
         top_k=args.top_k,

@@ -17,13 +17,13 @@ def train(
     early_stop_iter=10,
     start_epoch=0
 ):
-    model_device=model.device
+    model_device = next(model.parameters()).device
     metric = MeanAveragePrecision().to(model_device)
     multigpu=False
     model_attributes=model
-    if model.device!=torch.device("cpu"):
+    if model_device!=torch.device("cpu"):
         if torch.cuda.device_count()>1:
-                device_id=model.device.index
+                device_id=model_device.index
                 multigpu=True
                 model=DDP(model,device_ids=[device_id])
                 model_attributes=model.module
