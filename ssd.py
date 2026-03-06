@@ -35,7 +35,7 @@ class SSD(nn.Module):
         self.nms_thr = nms_thr
         self.top_k = top_k
         self.variances = variances
-
+        self.device=device
         self.l2norm = L2norm(512, 20)
 
         self.extras = nn.ModuleList(
