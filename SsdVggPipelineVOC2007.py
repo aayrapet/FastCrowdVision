@@ -151,6 +151,7 @@ def pipeline(rank: int, nb_gpus: int, base):
         top_k=args.top_k,
         variances=args.variances,
         N_epochs=args.N_epochs,
+        device=device
     ).to(device)
 
     optimizer = torch.optim.SGD(

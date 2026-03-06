@@ -21,7 +21,7 @@ class SSD(nn.Module):
         top_k,
         variances,
         N_epochs: int = 100,
-
+        device=device,
         alpha=1,
     ):
         super().__init__()
@@ -127,7 +127,7 @@ class SSD(nn.Module):
         self.regression_convolutions.apply(weights_init)
 
         boxes = AnchorBoxes(config)
-        anchors = boxes.forward()
+        anchors = boxes.forward().to(device)
         self.register_buffer("anchors", anchors)
         convs = {}
         i = 1
