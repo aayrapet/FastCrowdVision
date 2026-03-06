@@ -56,6 +56,9 @@ parser.add_argument(
     "--test_size", default=0.15, type=float, help="prct of dataset used for test set  "
 )
 
+parser.add_argument(
+    "--gamma", default=0.1, type=float, help="Gamma update for SGD optimizer "
+)
 
 parser.add_argument(
     "--val_size",
@@ -64,6 +67,13 @@ parser.add_argument(
     help="prct of dataset used for validation set  ",
 )
 
+parser.add_argument(
+    "--lr_schedule_epochs",
+    default=[70, 90, 100],
+    nargs=3,
+    type=int,
+    help="at these epochs lr rate will change",
+)
 
 parser.add_argument(
     "--alpha",
@@ -90,7 +100,6 @@ parser.add_argument(
     type=int,
     help="top_k value used for training of ssd, refer to article for more details  ",
 )
-
 
 
 parser.add_argument(
@@ -151,17 +160,29 @@ def pipeline(rank: int, nb_gpus: int, base):
         top_k=args.top_k,
         variances=args.variances,
         N_epochs=args.N_epochs,
-        device=device
+        device=device,
     ).to(device)
 
     optimizer = torch.optim.SGD(
-        model.parameters(), lr=args.lr, weight_decay=args.weight_decay, momentum=args.momentum
+        model.parameters(),
+        lr=args.lr,
+        weight_decay=args.weight_decay,
+        momentum=args.momentum,
     )
-    train(model, optimizer, train_dataloader, val_dataloader, modelname=args.modelname)
+    train(
+        model,
+        optimizer,
+        train_dataloader,
+        val_dataloader,
+        modelname=args.modelname,
+        gamma=args.gamma,
+        lr_schedule_epochs=args.lr_schedule_epochs,
+    )
     if nb_gpus > 1:
         destroy_process_group()
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
 
     vgg = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
     vgg[16] = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
@@ -170,8 +191,8 @@ if __name__=="__main__":
     nb_gpus = torch.cuda.device_count()
     nb_classes = 21
     if nb_gpus > 1:
-        mp.spawn(pipeline, args=( nb_gpus, base), nprocs=nb_gpus)
+        mp.spawn(pipeline, args=(nb_gpus, base), nprocs=nb_gpus)
     elif nb_gpus == 1:
         pipeline(None, 1, base)
     else:
-        pipeline(None,  0, base)
+        pipeline(None, 0, base)

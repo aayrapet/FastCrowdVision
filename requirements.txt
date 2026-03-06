@@ -10,3 +10,4 @@ pillow
 pyyaml
 faster-coco-eval
 s3fs
+wandb
