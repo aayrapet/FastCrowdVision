@@ -184,7 +184,7 @@ def pipeline(rank: int, nb_gpus: int, base):
             #i will propose a function to check if models are compatible in all other hyperparameters later
             model_loaded, epoch_loaded, optimizer_loaded, best_val_loss_loaded, wandbid_loaded = load_model(args.model_already_trained, device, model, optimizer)
             model = model_loaded
-            epoch = epoch_loaded
+            epoch = epoch_loaded+1
             optimizer = optimizer_loaded
             best_val_loss = best_val_loss_loaded
             wandbid=wandbid_loaded
