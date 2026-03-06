@@ -20,8 +20,8 @@ class SSD(nn.Module):
         nms_thr,
         top_k,
         variances,
+        device,
         N_epochs: int = 100,
-        device=device,
         alpha=1,
     ):
         super().__init__()
