@@ -65,11 +65,11 @@ def train(
     epoch_verbose: int = 5,
     early_stop_iter=30,
     start_epoch=0,
-    best_val_loss=float("inf"),
+    max_map=0,
     wandbid=None
 ):
     
- 
+    
     model_device = next(model.parameters()).device
     metric = MeanAveragePrecision().to(model_device)
     multigpu = False
@@ -174,7 +174,7 @@ def train(
             print(f"Epoch [{epoch:03d}] | Train Loss: {train_loss:.6f}")
 
         model.eval()
-        eps = 10 ** (-3)
+
         val_loss = 0
         val_samples = 0
 
@@ -210,9 +210,9 @@ def train(
 
         # val_losses.append(val_loss)
 
-        if best_val_loss - val_loss > eps:
-            counter_early_stop = 0
-            best_val_loss = val_loss
+        if map_score > max_map:
+           
+            max_map = map_score
             results = (
                 {
                     "model_state": model_attributes.state_dict(),
@@ -220,7 +220,7 @@ def train(
                         "alpha": model_attributes.alpha,
                         "N_epochs": model_attributes.N_epochs,
                     },
-                    "val_loss": best_val_loss,
+                    "max_map": map_score,
                     "optimizer": optimizer.state_dict(),
                     "map_score": map_score,
                     "epoch": epoch,
@@ -242,30 +242,16 @@ def train(
                     f"{modelname}.pth"
                 )
 
-        else:
-            counter_early_stop = counter_early_stop + 1
 
         if epoch % epoch_verbose == 0:
             print(
                 f"Epoch [{epoch:03d}] | Val Loss: {val_loss:.6f} | Val MAP: {map_score:.6f}"
             )
 
-        if counter_early_stop >= early_stop_iter:
+        
 
-            logwandb(
-                epoch,
-                multigpu,
-                model_device,
-                run,
-                train_loss,
-                val_loss,
-                map_score,
-                True,#early stop 
-            )
-            break
-
-        else:
-            logwandb(
+        
+        logwandb(
                 epoch,
                 multigpu,
                 model_device,
@@ -274,7 +260,7 @@ def train(
                 val_loss,
                 map_score,
                 False,#early stop 
-            )
+        )
     if run is not None:
         run.finish()
 
@@ -290,7 +276,7 @@ def load_model(link, device, model,optimizer):
     for param_group in optimizer.param_groups:
             param_group["lr"] = old_lr
 
-    return model , loaded_state["epoch"], optimizer,loaded_state["val_loss"],wandbid
+    return model , loaded_state["epoch"], optimizer,loaded_state.get("max_map",None),wandbid
 
 
 def predict(model, image):

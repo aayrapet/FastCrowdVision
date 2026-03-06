@@ -176,17 +176,17 @@ def pipeline(rank: int, nb_gpus: int, base):
         weight_decay=args.weight_decay,
         momentum=args.momentum,
     )
-    best_val_loss = float("inf")
+    max_map=0
     wandbid=None
     if args.model_already_trained is not None:
         try:
             #attention i suppose models are compatible in all other hyperparameters
             #i will propose a function to check if models are compatible in all other hyperparameters later
-            model_loaded, epoch_loaded, optimizer_loaded, best_val_loss_loaded, wandbid_loaded = load_model(args.model_already_trained, device, model, optimizer)
+            model_loaded, epoch_loaded, optimizer_loaded, max_map_loaded, wandbid_loaded = load_model(args.model_already_trained, device, model, optimizer)
             model = model_loaded
             epoch = epoch_loaded+1
             optimizer = optimizer_loaded
-            best_val_loss = best_val_loss_loaded
+            max_map = max_map_loaded
             wandbid=wandbid_loaded
         except Exception as e:
             print(f"Error loading model: {e}")
@@ -202,7 +202,7 @@ def pipeline(rank: int, nb_gpus: int, base):
         gamma=args.gamma,
         lr_schedule_epochs=args.lr_schedule_epochs,
         start_epoch=epoch,
-        best_val_loss=best_val_loss,
+        max_map=max_map,
         wandbid=wandbid
     )
     if nb_gpus > 1:
