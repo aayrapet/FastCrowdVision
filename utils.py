@@ -75,6 +75,21 @@ def normalised_gt_coords(box, H, W):
         -1,
     )
 
+def _make_divisible(v, divisor, min_value=None):
+
+  """
+   this code is taken from the original code of mobilenet pytorch library
+  """
+  if min_value is None:
+    min_value = divisor
+  new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
+  # Make sure that round down does not go down by more than 10%.
+  if new_v < 0.9 * v:
+    new_v += divisor
+  return int(new_v)
+
+
+
 
 def center_to_corner(box):
     """from cx,cy,w,h to x1,y1,x2,y2"""

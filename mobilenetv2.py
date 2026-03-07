@@ -3,6 +3,24 @@
 import torch 
 import torch.nn as nn
 
+
+class BottleneckBlock(nn.Module):
+    def __init__(self,n,input_channel,t,kernel_size,output_channel,stride):
+        """
+        https://arxiv.org/pdf/1801.04381
+        """
+        super().__init__()
+        chain=[]
+        for i in range(n):
+            chain.append(DepthwiseSepConv(input_channel,t,kernel_size,output_channel,stride))
+            input_channel=output_channel
+            stride=1
+        self.operation=nn.Sequential(*chain)
+
+    def forward(self,x):
+        return self.operation(x)
+    
+
 class DepthwiseSepConv(nn.Module):
     def __init__(self,input_channel,t,kernel_size,output_channel,stride,dilation=1):
         """
@@ -11,10 +29,11 @@ class DepthwiseSepConv(nn.Module):
         https://docs.pytorch.org/vision/main/generated/torchvision.ops.Conv2dNormActivation.html
         https://github.com/pytorch/vision/blob/main/torchvision/models/mobilenetv2.py
         """
+        super().__init__()
         self.residual_conn= (input_channel==output_channel) and stride==1
         padding=(kernel_size - 1) // 2 * dilation
 
-        super().__init__()
+        
         self.operation=nn.Sequential(
 
         nn.Conv2d(input_channel,input_channel*t,1,bias=False,padding=0),#bias is false since we use batchnorm
@@ -36,25 +55,8 @@ class DepthwiseSepConv(nn.Module):
             return x+self.operation(x)
         return self.operation(x)
     
-class BottleneckBlock(nn.Module):
-    def __init__(self,n,input_channel,t,kernel_size,output_channel,stride):
-        """
-        https://arxiv.org/pdf/1801.04381
-        """
-        super().__init__()
-        chain=[]
-        for i in range(n):
-            chain.append(DepthwiseSepConv(input_channel,t,kernel_size,output_channel,stride))
-            input_channel=output_channel
-            stride=1
-        self.operation=nn.Sequential(*chain)
-
-    def forward(self,x):
-        return self.operation(x)
 
 
-#batch norm after each layer 
-#drop out 
 class MobileNetV2(nn.Module):
     def __init__(self,dropout,num_classes):
         super().__init__()
