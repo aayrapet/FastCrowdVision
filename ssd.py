@@ -230,3 +230,85 @@ def weights_init(m):
         xavier(m.weight)
         if m.bias is not None:
             init.constant_(m.bias, 0)
+
+class DepthwiseSeparableConv(nn.Module):
+    def __init__(self, input_channel, output_channel, kernel_size, padding, stride=1):
+        super().__init__()
+        self.operation = nn.Sequential(
+            nn.Conv2d(input_channel, input_channel, kernel_size, groups=input_channel,
+                      bias=False, padding=padding, stride=stride),
+            nn.BatchNorm2d(input_channel),
+            nn.ReLU6(inplace=True),
+            nn.Conv2d(input_channel, output_channel, 1, bias=False),
+            nn.BatchNorm2d(output_channel),
+        )
+
+    def forward(self, x):
+        return self.operation(x)
+
+
+class DepthwiseSeparableExtraBlock(nn.Module):
+    """Extra feature block following the torchvision SSDLite pattern:
+    1x1 pointwise → 3x3 depthwise → 1x1 pointwise"""
+    def __init__(self, in_channels, out_channels, stride=2, padding=1):
+        super().__init__()
+        mid_channels = out_channels // 2
+        self.operation = nn.Sequential(
+            nn.Conv2d(in_channels, mid_channels, 1, bias=False),
+            nn.BatchNorm2d(mid_channels),
+            nn.ReLU6(inplace=True),
+            nn.Conv2d(mid_channels, mid_channels, 3, stride=stride, padding=padding,
+                      groups=mid_channels, bias=False),
+            nn.BatchNorm2d(mid_channels),
+            nn.ReLU6(inplace=True),
+            nn.Conv2d(mid_channels, out_channels, 1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU6(inplace=True),
+        )
+
+    def forward(self, x):
+        return self.operation(x)
+
+class SSDLite(SSD):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.extras = nn.ModuleList(
+            [
+                DepthwiseSeparableExtraBlock(512, 1024, stride=1, padding=1),
+                DepthwiseSeparableExtraBlock(1024, 512, stride=2, padding=1),
+                DepthwiseSeparableExtraBlock(512, 256, stride=2, padding=1),
+                DepthwiseSeparableExtraBlock(256, 256, stride=1, padding=0),
+                DepthwiseSeparableExtraBlock(256, 256, stride=1, padding=0),
+            ]
+        )
+        self.extras.apply(weights_init)
+
+        self.classification_convolutions = nn.ModuleList(
+            [
+                DepthwiseSeparableConv(512, 4 * self.nb_classes, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(1024, 6 * self.nb_classes, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(512, 6 * self.nb_classes, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(256, 6 * self.nb_classes, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(256, 4 * self.nb_classes, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(256, 4 * self.nb_classes, kernel_size=3, padding=1),
+            ]
+        )
+        self.classification_convolutions.apply(weights_init)
+        self.regression_convolutions = nn.ModuleList(
+            [
+                DepthwiseSeparableConv(512, 4 * 4, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(1024, 6 * 4, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(512, 6 * 4, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(256, 6 * 4, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(256, 4 * 4, kernel_size=3, padding=1),
+                DepthwiseSeparableConv(256, 4 * 4, kernel_size=3, padding=1),
+
+            ]
+        )
+        self.regression_convolutions.apply(weights_init)
+
+
+
+
