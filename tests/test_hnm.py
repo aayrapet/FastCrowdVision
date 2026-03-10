@@ -1,16 +1,10 @@
-# test_hnm.py
 import torch
 import torch.nn.functional as F
+import pytest
 
 
-
-#the function i coded which works for one image + for loop over images 
+# reference implementation (per image)
 def HNM(classifications_reshaped, labels_reshaped, neg_pos_ratio=4):
-    """
-    classifications_reshaped: [A, C]
-    labels_reshaped:          [A]
-    returns:                  indices into A
-    """
     losses = F.cross_entropy(
         classifications_reshaped,
         labels_reshaped,
@@ -22,22 +16,19 @@ def HNM(classifications_reshaped, labels_reshaped, neg_pos_ratio=4):
     nb_positives = positive_indexes.numel()
 
     if nb_positives == 0:
-        return positive_indexes  # empty
+        return positive_indexes
 
     _, indx = losses[negative_indexes].sort(descending=True)
+
     negative_indexes = negative_indexes[
         indx[:min(nb_positives * neg_pos_ratio, len(indx))]
     ]
 
     return torch.cat([positive_indexes, negative_indexes], dim=0)
 
-#Vectorized version max de groot , need to test their equivalence
+
+# vectorized implementation
 def HNMAX(classifications, labels, neg_pos_ratio=4):
-    """
-    classifications: [N, A, C]
-    labels:          [N, A]
-    returns:         flat indices into (N*A)
-    """
 
     N, A, C = classifications.shape
 
@@ -59,53 +50,42 @@ def HNMAX(classifications, labels, neg_pos_ratio=4):
     neg = idx_rank < num_neg.expand_as(idx_rank)
 
     selected = pos | neg
+
     return selected.view(-1).nonzero(as_tuple=True)[0]
 
 
-# ===============================
-# UNIT TEST
-# ===============================
-def test_hnm_equivalence(
-    N=5,
-    A=8732,
-    C=21,
-    seed=0
-):
-    torch.manual_seed(seed)
+# =========================================
+# PYTEST
+# =========================================
+
+@pytest.mark.parametrize("N", [2, 4, 8, 20, 30])
+def test_hnm_equivalence(N):
+
+    torch.manual_seed(0)
+
+    A = 8732
+    C = 21
 
     classifications = torch.randn(N, A, C)
     labels = torch.zeros(N, A, dtype=torch.long)
 
-    # random positives (at least 1 per image)
+    # ensure positives exist
     for i in range(N):
         pos_idx = torch.randperm(A)[:torch.randint(1, 20, (1,)).item()]
         labels[i, pos_idx] = torch.randint(1, C, (len(pos_idx),))
 
-    # ---- ground truth (per image) ----
+    # reference result
     gt_all = []
     for i in range(N):
         gt = HNM(classifications[i], labels[i])
-        gt_all.append(gt + i * A)   # offset
+        gt_all.append(gt + i * A)
 
     gt_all = torch.cat(gt_all).sort().values
 
-    # ---- vectorized version ----
+    # vectorized result
     hnm_pc = HNMAX(classifications, labels).sort().values
 
-    # ---- assertions ----
     assert gt_all.numel() == hnm_pc.numel(), \
-        f"Different number of selected anchors: {gt_all.numel()} vs {hnm_pc.numel()}"
+        f"Different number of anchors: {gt_all.numel()} vs {hnm_pc.numel()}"
 
-    assert torch.all(gt_all == hnm_pc), \
-        "HNMAX does NOT match reference HNM"
-
-    print("✅ HNMAX matches reference HNM for N =", N)
-
-
-#test runnin
-if __name__ == "__main__":
-    test_hnm_equivalence(N=2)
-    test_hnm_equivalence(N=4)
-    test_hnm_equivalence(N=8)
-    test_hnm_equivalence(N=20)
-    test_hnm_equivalence(N=30)
+    assert torch.equal(gt_all, hnm_pc)

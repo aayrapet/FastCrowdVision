@@ -8,15 +8,20 @@ class SqueezeExcitationBlock(nn.Module):
         expects 3D Tensor
         """
         super().__init__()
+        reduced = _make_divisible(input_size // factor, 8)
         self.operation = nn.Sequential(
             # squeeze
-            nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(1),
+            nn.AdaptiveAvgPool2d(1),
+            
             # excitation
-            nn.Linear(input_size, _make_divisible(input_size // factor, 8)),
+            #note that this code is based on pytorch coding
+            #i used instead linear layer which is identical mathematically, but not in shapes 
+            #i got 24,72 shape instead of 24,72,1,1
+            # in order to match their pretrained weights i modified this code 
+            nn.Conv2d(input_size, reduced, 1),
             nn.ReLU(inplace=True),
-            nn.Linear(_make_divisible(input_size // factor, 8), input_size),
-            nn.Hardsigmoid(inplace=True),
+
+            nn.Conv2d(reduced, input_size, 1),
         )
 
     def forward(self, x):
@@ -55,13 +60,20 @@ class DepthwiseSepConv(nn.Module):
         self.residual_conn = (input_channel == output_channel) and stride == 1
         padding = (kernel_size - 1) // 2 * dilation
 
-        
-        layers = [
+        layers=[]
+
+        if input_channel!=expansion_size:
+
+            layers.extend([
             nn.Conv2d(
                 input_channel, expansion_size, 1, bias=False, padding=0
             ),  # bias is false since we use batchnorm
             nn.BatchNorm2d(expansion_size),
-            _get_activation(activation),
+            _get_activation(activation)]
+            )
+
+        layers.extend([
+            
             # depthzise convolution
             nn.Conv2d(
                 expansion_size,
@@ -74,7 +86,7 @@ class DepthwiseSepConv(nn.Module):
             ),
             nn.BatchNorm2d(expansion_size),
             _get_activation(activation),
-        ]
+        ])
         if SE:
             layers.append(SqueezeExcitationBlock(expansion_size, 4))
         layers.extend([

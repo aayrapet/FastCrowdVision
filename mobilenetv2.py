@@ -33,12 +33,15 @@ class DepthwiseSepConv(nn.Module):
         self.residual_conn= (input_channel==output_channel) and stride==1
         padding=(kernel_size - 1) // 2 * dilation
 
+        layers=[]
+        if t!=1:
+            layers.extend([
+                nn.Conv2d(input_channel,input_channel*t,1,bias=False,padding=0),#bias is false since we use batchnorm
+                nn.BatchNorm2d(input_channel*t),
+                nn.ReLU6(inplace=True),
+            ])
+        layers.extend([
         
-        self.operation=nn.Sequential(
-
-        nn.Conv2d(input_channel,input_channel*t,1,bias=False,padding=0),#bias is false since we use batchnorm
-        nn.BatchNorm2d(input_channel*t),
-        nn.ReLU6(inplace=True),
 
         #depthzise convolution 
         nn.Conv2d(input_channel*t,input_channel*t,kernel_size,groups=input_channel*t,stride=stride,bias=False,padding=padding),
@@ -46,8 +49,11 @@ class DepthwiseSepConv(nn.Module):
         nn.ReLU6(inplace=True),
 
         nn.Conv2d(input_channel*t,output_channel,1,bias=False,padding=0),
-        nn.BatchNorm2d(output_channel),
+        nn.BatchNorm2d(output_channel)]
         )
+        self.operation=nn.Sequential(*layers)
+
+        
         
 
     def forward(self,x):
