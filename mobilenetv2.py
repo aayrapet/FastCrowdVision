@@ -15,10 +15,10 @@ class BottleneckBlock(nn.Module):
             chain.append(DepthwiseSepConv(input_channel,t,kernel_size,output_channel,stride))
             input_channel=output_channel
             stride=1
-        self.operation=nn.Sequential(*chain)
+        self.features=nn.Sequential(*chain)
 
     def forward(self,x):
-        return self.operation(x)
+        return self.features(x)
     
 
 class DepthwiseSepConv(nn.Module):
@@ -51,15 +51,15 @@ class DepthwiseSepConv(nn.Module):
         nn.Conv2d(input_channel*t,output_channel,1,bias=False,padding=0),
         nn.BatchNorm2d(output_channel)]
         )
-        self.operation=nn.Sequential(*layers)
+        self.features=nn.Sequential(*layers)
 
         
         
 
     def forward(self,x):
         if self.residual_conn:
-            return x+self.operation(x)
-        return self.operation(x)
+            return x+self.features(x)
+        return self.features(x)
     
 
 

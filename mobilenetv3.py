@@ -94,12 +94,12 @@ class DepthwiseSepConv(nn.Module):
             nn.BatchNorm2d(output_channel),
         ] 
         )
-        self.operation = nn.Sequential(*layers)
+        self.features = nn.Sequential(*layers)
 
     def forward(self, x):
         if self.residual_conn:
-            return x + self.operation(x)
-        return self.operation(x)
+            return x + self.features(x)
+        return self.features(x)
 
 
 class BottleneckBlock(nn.Module):
@@ -130,17 +130,17 @@ class BottleneckBlock(nn.Module):
                 )
             )
             input_channel = output_channel[i]
-        self.operation = nn.Sequential(*chain)
+        self.features = nn.Sequential(*chain)
 
     def forward(self, x):
-        return self.operation(x)
+        return self.features(x)
 
 
 class MobileNetV3Large(nn.Module):
     def __init__(self, dropout, num_classes, last_channel):
 
         super().__init__()
-        self.operation = nn.Sequential(
+        self.features = nn.Sequential(
             nn.Conv2d(3, 16, 3, stride=2, padding=1,bias=False),
             nn.BatchNorm2d(16),
             nn.Hardswish(inplace=True),
@@ -233,7 +233,7 @@ class MobileNetV3Large(nn.Module):
                 nn.init.zeros_(m.bias)
 
     def forward(self, x):
-        x=self.operation(x)
+        x=self.features(x)
         x=x.reshape(x.shape[0],-1)
         output=self.classifier(x)
         return output
@@ -243,7 +243,7 @@ class MobileNetV3Small(nn.Module):
     def __init__(self, dropout, num_classes, last_channel):
 
         super().__init__()
-        self.operation = nn.Sequential(
+        self.features = nn.Sequential(
             nn.Conv2d(3, 16, 3, stride=2, padding=1, bias=False),
             nn.BatchNorm2d(16),
             nn.Hardswish(inplace=True),
@@ -324,7 +324,7 @@ class MobileNetV3Small(nn.Module):
                 nn.init.zeros_(m.bias)
 
     def forward(self, x):
-        x = self.operation(x)
+        x = self.features(x)
         x = x.reshape(x.shape[0], -1)
         output = self.classifier(x)
         return output
