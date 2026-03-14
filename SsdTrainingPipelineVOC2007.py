@@ -1,4 +1,6 @@
-from ssd import SSD
+import yaml
+from ssd import SSD, SSDLite
+from l2norm import L2norm
 from multigpusetup import ddp_setup
 from torch.distributed import init_process_group, destroy_process_group
 from train import train
@@ -16,9 +18,16 @@ parser = argparse.ArgumentParser(
     description="Single Shot MultiBox Detector Training With Pytorch"
 )
 
-
 parser.add_argument(
     "img_dir", type=str, help="type folder path  with images in jpef/png format "
+)
+
+parser.add_argument(
+    "backbone",
+    type=str,
+    choices=["vgg", "mobilenetv2", "mobilenetv3large", "mobilenetv3small"],
+    default="vgg",
+    help="backbone to use in SSD, note that all non VGG backbones are only available for SSDLite"
 )
 
 parser.add_argument(
@@ -131,7 +140,7 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-# fo the moment we have only SSDVGG architecture, we will be able to select in argparse other archi soon
+# Supports VGG (SSD) and MobileNetV2/V3Large/V3Small (SSDLite) backbones
 def pipeline(rank: int, nb_gpus: int, base):
 
     if nb_gpus == 0:
@@ -155,9 +164,7 @@ def pipeline(rank: int, nb_gpus: int, base):
     )
     train_dataloader, val_dataloader, test_dataloader = splitter(someloader)
 
-   
-    model = SSD(
-        base,
+    common_kwargs = dict(
         nb_classes=args.nb_classes,
         phase="train",
         alpha=args.alpha,
@@ -167,7 +174,35 @@ def pipeline(rank: int, nb_gpus: int, base):
         variances=args.variances,
         N_epochs=args.N_epochs,
         device=device,
-    ).to(device)
+    )
+
+    if args.backbone == "vgg":
+        with open("config/ssdlite_vgg.yaml", "r") as f:
+            priorbox_config = yaml.safe_load(f)
+        model = SSD(
+            backbone=base,
+            c4_name="22",
+            priorbox_config=priorbox_config,
+            c4_norm=L2norm(512, 20),
+            **common_kwargs,
+        ).to(device)
+    else:
+        config_paths = {
+            "mobilenetv2": "config/ssdlite_mobilenetv2.yaml",
+            "mobilenetv3large": "config/ssdlite_mobilenetv3large.yaml",
+            "mobilenetv3small": "config/ssdlite_mobilenetv3small.yaml",
+        }
+        c4_names = {
+            "mobilenetv2": "8.features.0.features.2",
+            "mobilenetv3large": "7.features.1.features.2",
+            "mobilenetv3small": "6.features.1.features.2",
+        }
+        model = SSDLite(
+            backbone_config_path=config_paths[args.backbone],
+            backbone=base,
+            c4_name=c4_names[args.backbone],
+            **common_kwargs,
+        ).to(device)
     epoch = 0
 
     optimizer = torch.optim.SGD(
@@ -210,16 +245,56 @@ def pipeline(rank: int, nb_gpus: int, base):
 
 
 if __name__ == "__main__":
+    if args.backbone == "vgg":
+        from torchvision.models import VGG16_Weights
+        vgg = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
+        vgg[16] = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
+        backbone = vgg[:30]  # until 5_3 layer
 
-    vgg = models.vgg16(weights=VGG16_Weights.IMAGENET1K_V1).features
-    vgg[16] = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
-    base = nn.ModuleList(vgg[:30])  # until 5_3 layer
+    elif args.backbone == "mobilenetv2":
+        from torchvision.models import MobileNet_V2_Weights
+        from mobilenetv2 import MobileNetV2
+        weights = MobileNet_V2_Weights.DEFAULT
+        state_dict = weights.get_state_dict()
+        
+        model = MobileNetV2(0.1, 1000)
+
+
+        new_state_dict = {}
+        for my_key, pretrained_key in zip(model.state_dict().keys(), state_dict.keys()):
+            new_state_dict[my_key] = state_dict[pretrained_key]
+        model.load_state_dict(new_state_dict)
+        backbone = model.features
+
+    elif args.backbone == "mobilenetv3large":
+        from torchvision.models import MobileNet_V3_Large_Weights
+        from mobilenetv3 import MobileNetV3Large
+        weights = MobileNet_V3_Large_Weights.DEFAULT
+        state_dict = weights.get_state_dict()
+        model = MobileNetV3Large(0.1, 1000, 1280)
+
+        new_state_dict = {}
+        for my_key, pretrained_key in zip(model.state_dict().keys(), state_dict.keys()):
+            new_state_dict[my_key] = state_dict[pretrained_key]
+        model.load_state_dict(new_state_dict)
+        backbone=model.features[:-1]
+    elif args.backbone == "mobilenetv3small":
+        from torchvision.models import MobileNet_V3_Small_Weights
+        from mobilenetv3 import MobileNetV3Small
+        weights = MobileNet_V3_Small_Weights.DEFAULT
+        state_dict = weights.get_state_dict()
+        model = MobileNetV3Small(0.1, 1000, 1024)
+        new_state_dict = {}
+        for my_key, pretrained_key in zip(model.state_dict().keys(), state_dict.keys()):
+            new_state_dict[my_key] = state_dict[pretrained_key]
+        backbone=model.features[:-1]
+    
 
     nb_gpus = torch.cuda.device_count()
     nb_classes = 21
     if nb_gpus > 1:
-        mp.spawn(pipeline, args=(nb_gpus, base), nprocs=nb_gpus)
+        mp.spawn(pipeline, args=(nb_gpus, backbone), nprocs=nb_gpus)
     elif nb_gpus == 1:
-        pipeline(None, 1, base)
+        pipeline(None, 1, backbone)
     else:
-        pipeline(None, 0, base)
+        pipeline(None, 0, backbone)

@@ -46,15 +46,3 @@ class AnchorBoxes():
 
         anchors_tensor = torch.tensor(anchors, dtype=torch.float32)
         return anchors_tensor
-    
-
-if __name__=="__main__":
-    import yaml
-
-    with open('config/priorbox.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-
-    boxes=AnchorBoxes(config)
-    n=boxes.forward()
-    print(n.shape)
-    print(n)

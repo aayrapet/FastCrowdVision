@@ -29,3 +29,14 @@ def test_mobilenetv2_structure(width_mult):
 
         assert v1.shape == v2.shape, \
             f"Shape mismatch: {k1} {v1.shape} vs {k2} {v2.shape}"
+
+
+def test_mobilenetv2_pretrained_load():
+    """Pipeline loading: pretrained weights load into our architecture without error."""
+    model = MobileNetV2(0.1, 1000)
+    state_dict = MobileNet_V2_Weights.DEFAULT.get_state_dict()
+    new_state_dict = {
+        my_key: state_dict[pretrained_key]
+        for my_key, pretrained_key in zip(model.state_dict().keys(), state_dict.keys())
+    }
+    model.load_state_dict(new_state_dict)

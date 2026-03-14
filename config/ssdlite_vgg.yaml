@@ -1,0 +1,21 @@
+c4_channels: 512
+
+extras:
+  # [in_channels, out_channels, stride, padding]
+  - [512, 1024, 1, 1]
+  - [1024, 512, 2, 1]
+  - [512, 256, 2, 1]
+  - [256, 256, 1, 0]
+  - [256, 256, 1, 0]
+
+anchors_per_location: [4, 6, 6, 6, 4, 4]
+
+feature_maps: [38, 19, 10, 5, 3, 1]
+
+aspect_ratios:
+  - [1, 2]
+  - [1, 2, 3]
+  - [1, 2, 3]
+  - [1, 2, 3]
+  - [1, 2]
+  - [1, 2]

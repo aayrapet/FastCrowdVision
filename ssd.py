@@ -2,18 +2,16 @@ from priorbox import AnchorBoxes
 import yaml
 import torch
 import torch.nn as nn
-from l2norm import L2norm
 import torch.nn.init as init
 from detection import Detection
-
-with open("config/priorbox.yaml", "r") as file:
-    config = yaml.safe_load(file)
 
 
 class SSD(nn.Module):
     def __init__(
         self,
-        base,
+        backbone,
+        c4_name,
+        priorbox_config,
         nb_classes,
         phase,
         prob_thr,
@@ -23,9 +21,10 @@ class SSD(nn.Module):
         device,
         N_epochs: int = 100,
         alpha=1,
+        c4_norm=None,
     ):
         super().__init__()
-        self.features = base
+        self.backbone = backbone
         self.nb_classes = nb_classes
         self.alpha = alpha
         self.N_epochs = N_epochs
@@ -36,8 +35,16 @@ class SSD(nn.Module):
         self.top_k = top_k
         self.variances = variances
         self.device=device
-        self.l2norm = L2norm(512, 20)
+        self.c4_norm = c4_norm
 
+        self._hooked_features = []
+
+        for name, module in backbone.named_modules():
+            if name == c4_name:
+                module.register_forward_hook(self._hook_fn)
+                break
+
+        # define extras layers
         self.extras = nn.ModuleList(
             [
                 # conv6 and conv7
@@ -126,24 +133,9 @@ class SSD(nn.Module):
 
         self.regression_convolutions.apply(weights_init)
 
-        boxes = AnchorBoxes(config)
+        boxes = AnchorBoxes(priorbox_config)
         anchors = boxes.forward().to(device)
         self.register_buffer("anchors", anchors)
-        convs = {}
-        i = 1
-        convid = 1
-        for id, el in enumerate(base):
-
-            if isinstance(el, nn.Conv2d):
-
-                convs[id] = f"{i}_{convid}"
-                convid = convid + 1
-            if isinstance(el, nn.MaxPool2d):
-                convid = 1
-                i = i + 1
-        self.convs = convs
-
-        
         self.detection = Detection(
                 nb_classes=nb_classes,
                 prob_thr=prob_thr,
@@ -153,16 +145,20 @@ class SSD(nn.Module):
                 anchors=self.anchors,
         )
 
+    def _hook_fn(self, module, input, output):
+        self._hooked_features.append(output)
+
     def forward(self, X):
+        self._hooked_features = []  
         layers_for_prediction = []
 
         # base model
-        for idx in range(len(self.features)):
-
-            X = self.features[idx](X)
-
-            if (idx-1) in self.convs and self.convs[idx-1] == "4_3":       
-                layers_for_prediction.append(self.l2norm(X))
+        c5 = self.backbone(X)
+        c4 = self._hooked_features[0]
+        if self.c4_norm is not None:
+            c4 = self.c4_norm(c4)
+        layers_for_prediction = [c4]
+        X = c5
 
         for idx in range(len(self.extras)):
             X = self.extras[idx](X)
@@ -271,42 +267,35 @@ class DepthwiseSeparableExtraBlock(nn.Module):
 
 class SSDLite(SSD):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, backbone_config_path, *args, **kwargs):
+        with open(backbone_config_path, "r") as f:
+            self._cfg = yaml.safe_load(f)
+        #define priorbox config
+        kwargs["priorbox_config"] = self._cfg
         super().__init__(*args, **kwargs)
 
-        self.extras = nn.ModuleList(
-            [
-                DepthwiseSeparableExtraBlock(512, 1024, stride=1, padding=1),
-                DepthwiseSeparableExtraBlock(1024, 512, stride=2, padding=1),
-                DepthwiseSeparableExtraBlock(512, 256, stride=2, padding=1),
-                DepthwiseSeparableExtraBlock(256, 256, stride=1, padding=0),
-                DepthwiseSeparableExtraBlock(256, 256, stride=1, padding=0),
-            ]
-        )
+        extras_cfg = self._cfg["extras"]
+        anchors = self._cfg["anchors_per_location"]
+        c4_ch = self._cfg["c4_channels"]
+
+        self.extras = nn.ModuleList([
+            DepthwiseSeparableExtraBlock(in_ch, out_ch, stride=s, padding=p)
+            for in_ch, out_ch, s, p in extras_cfg
+        ])
         self.extras.apply(weights_init)
 
-        self.classification_convolutions = nn.ModuleList(
-            [
-                DepthwiseSeparableConv(512, 4 * self.nb_classes, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(1024, 6 * self.nb_classes, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(512, 6 * self.nb_classes, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(256, 6 * self.nb_classes, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(256, 4 * self.nb_classes, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(256, 4 * self.nb_classes, kernel_size=3, padding=1),
-            ]
-        )
-        self.classification_convolutions.apply(weights_init)
-        self.regression_convolutions = nn.ModuleList(
-            [
-                DepthwiseSeparableConv(512, 4 * 4, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(1024, 6 * 4, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(512, 6 * 4, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(256, 6 * 4, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(256, 4 * 4, kernel_size=3, padding=1),
-                DepthwiseSeparableConv(256, 4 * 4, kernel_size=3, padding=1),
+        head_channels = [c4_ch] + [out_ch for _, out_ch, _, _ in extras_cfg]
 
-            ]
-        )
+        self.classification_convolutions = nn.ModuleList([
+            DepthwiseSeparableConv(ch, a * self.nb_classes, kernel_size=3, padding=1)
+            for ch, a in zip(head_channels, anchors)
+        ])
+        self.classification_convolutions.apply(weights_init)
+
+        self.regression_convolutions = nn.ModuleList([
+            DepthwiseSeparableConv(ch, a * 4, kernel_size=3, padding=1)
+            for ch, a in zip(head_channels, anchors)
+        ])
         self.regression_convolutions.apply(weights_init)
 
 
