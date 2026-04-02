@@ -10,9 +10,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 from torchvision.models import VGG16_Weights
-from dataloader import DataSSD300, DataSplitter
 import argparse
 from train import load_model
+from dataloader import DataGeneralLoader,DataSSD300
+from dataloader import random_split
 
 parser = argparse.ArgumentParser(
     description="Single Shot MultiBox Detector Training With Pytorch"
@@ -153,16 +154,31 @@ def pipeline(rank: int, nb_gpus: int, base):
     else:
         raise ValueError("no nb gpus specified")
 
-    someloader = DataSSD300(
-        args.img_dir, args.lbl_dir, gt_normalised=args.gt_normalised
+
+
+    images_link = sorted(glob.glob(args.img_dir + "/*.jpg"))
+    labels_link = sorted(glob.glob(args.lbl_dir + "/*.txt"))
+
+    train_links,val_links,test_links=random_split(images_link, labels_link, test_size=args.test_size, val_size=args.val_size, seed=None)
+
+    
+    trainloader = DataSSD300(
+            **train_links, mode="train", gt_normalised=args.gt_normalised
     )
-    splitter = DataSplitter(
-        batch_size=args.batch_size,
-        test_size=args.test_size,
-        val_size=args.val_size,
-        multigpu=True if nb_gpus > 1 else False,
+    valloader = DataSSD300(
+            **val_links, mode="test", gt_normalised=args.gt_normalised
     )
-    train_dataloader, val_dataloader, test_dataloader = splitter(someloader)
+
+    testloader = DataSSD300(
+            **test_links, mode="test", gt_normalised=args.gt_normalised
+    )
+
+
+    GeneralLoader = DataGeneralLoader(
+            batch_size=args.batch_size,
+            multigpu=True if nb_gpus > 1 else False,
+    )
+    train_dataloader, val_dataloader, test_dataloader = GeneralLoader(trainloader,valloader,testloader)
 
     common_kwargs = dict(
         nb_classes=args.nb_classes,

@@ -1,11 +1,12 @@
 from utils import center_to_corner
 from PIL import Image
-from torchvision import transforms
+
 import torch
 import glob
 import torch.nn as nn
 from torch.utils.data.distributed import DistributedSampler
-
+from torchvision.transforms import v2
+from torchvision import tv_tensors
 
 class DataSSD300(torch.utils.data.Dataset):
     """
@@ -21,66 +22,96 @@ class DataSSD300(torch.utils.data.Dataset):
 
     """
 
-    def __init__(self, img_dir, lbl_dir, gt_normalised: bool = True):
-        self.images = sorted(glob.glob(img_dir + "/*.jpg"))
-        self.labels = sorted(glob.glob(lbl_dir + "/*.txt"))
-        self.transform = transforms.Compose(
-            [
-                transforms.Resize((300, 300)),
-                transforms.ToTensor(),
-                transforms.Normalize(
-                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
-                ),
-            ]
-        )
+    def __init__(self, img_dir : list[str], lbl_dir : list[str],mode, gt_normalised: bool = True,trials=10):
+        self.images = img_dir
+        self.labels = lbl_dir
+        if mode =="train":
+            #for training set we use data augmentations, but not for test set
+            self.transform = v2.Compose(
+                [
+                    
+                    v2.RandomIoUCrop(min_scale = 0.3, max_scale  = 1.0, min_aspect_ratio = 0.5, max_aspect_ratio= 2.0, sampler_options = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0],trials=trials),
+                    #https://docs.pytorch.org/vision/main/generated/torchvision.transforms.v2.SanitizeBoundingBoxes.html
+                    v2.ClampBoundingBoxes(),
+                    v2.SanitizeBoundingBoxes(),
+                    v2.RandomHorizontalFlip(p=0.5),
+                    #https://arxiv.org/pdf/1312.5402
+                    v2.RandomPhotometricDistort(
+                        brightness=(0.5, 1.5),
+                        contrast=(0.5, 1.5),
+                        saturation=(0.5, 1.5),
+                    ),
+
+                    v2.Resize((300, 300)),
+                    v2.ToImage(),  
+                    v2.ToDtype(torch.float32, scale=True),
+                    #we suppose backbones were pretrained on image net 
+                    v2.Normalize(
+                            mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225]
+                    ),
+                ]
+            )
+        else:
+            self.transform = v2.Compose(
+                [
+                    v2.Resize((300, 300)),
+                    v2.ToImage(),  
+                    v2.ToDtype(torch.float32, scale=True),
+                    #we suppose backbones were pretrained on image net 
+                    #we take their stat
+                    v2.Normalize(
+                            mean=[0.485, 0.456, 0.406],
+                            std=[0.229, 0.224, 0.225]
+                    ),
+                ]
+            )
+        #https://docs.pytorch.org/vision/main/auto_examples/transforms/plot_transforms_getting_started.html
         self.gt_normalised = gt_normalised
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, idx):
+        img = Image.open(self.images[idx]).convert("RGB")#RGBA->RGB force 
 
-        # images
-        img = Image.open(self.images[idx]).convert("RGB")
-
-        if not self.gt_normalised:
-            W, H = img.size
-        else:
-            H, W = 1, 1
-        img_tensor = self.transform(img)
-
-        # labels and gt boxes
+        W, H = img.size if self.gt_normalised else (1,1)
+     
+        # labels and gt boxes easy extraction
         with open(self.labels[idx]) as f:
             gt_box = []
             label_list = []
             for line in f:
                 label, cx, cy, w, h = map(float, line.split())
-
-                gt_box.append((cx / W, cy / H, w / W, h / H))
+                #when normalised gt boxes coords ( in (0;1)) need to get actual coords FOR FURTHER TRANSFORMATION
+                gt_box.append((cx*W, cy*H , w*W , h*H ))
 
                 label_list.append(
                     label + 1
                 )  # yolo labels start at 0, my ssd start at 1, O is BG
             gt_box = center_to_corner(torch.tensor(gt_box, dtype=torch.float32))
-            # just to be sure we clamp to [0,1]
-            gt_box = gt_box.clamp(min=0, max=1)
-
+         
             label_list = torch.tensor(label_list, dtype=torch.int64)
 
-        return img_tensor, label_list, gt_box
+        #https://docs.pytorch.org/vision/stable/transforms.html
+        boxes = tv_tensors.BoundingBoxes(gt_box, format="XYXY", canvas_size=(H,W))
+
+        img, target = self.transform(img, {"boxes": boxes, "labels": label_list})
+        boxes = target["boxes"]
+        labels = target["labels"]
+
+        return img, labels, boxes
 
 
-class DataSplitter(nn.Module):
+class DataGeneralLoader(nn.Module):
     """
-    Split into training, validation, testing dataloaders
+    Split into training, validation, testing dataloaders, specifying general parameters 
     """
 
     def __init__(
-        self, batch_size: int, test_size: float, val_size: float, multigpu=False
+        self, batch_size: int, multigpu=False
     ):
         super().__init__()
-        self.test_size = test_size
-        self.val_size = val_size
         self.batch_size = batch_size
         self.multigpu = multigpu
 
@@ -90,40 +121,65 @@ class DataSplitter(nn.Module):
         images = torch.stack(images, dim=0)
         return images, list(labels), list(boxes)
 
-    def forward(self, dataset: DataSSD300):
-
+    def forward(self, dataset_train: DataSSD300, dataset_test: DataSSD300, dataset_eval: DataSSD300):
         # https://stackoverflow.com/questions/65138643/examples-or-explanations-of-pytorch-dataloaders
-
-        test_amount, val_amount = int(len(dataset) * self.test_size), int(
-            len(dataset) * self.val_size
-        )
-
-        # this function will automatically randomly split your dataset but you could also implement the split yourself
-        train_set, test_set, val_set = torch.utils.data.random_split(
-            dataset,
-            [(len(dataset) - (test_amount + val_amount)), test_amount, val_amount],
-        )
-
         train_dataloader = torch.utils.data.DataLoader(
-            train_set,
+            dataset_train,
             batch_size=self.batch_size,
             shuffle=False if self.multigpu else True,
             collate_fn=self.collate_ssd,
-            sampler=DistributedSampler(train_set) if self.multigpu else None,
+            #https://docs.pytorch.org/tutorials/beginner/ddp_series_multigpu.html
+            sampler=DistributedSampler(dataset_train) if self.multigpu else None,
+            # persistent_workers=True,
+            # # num_workers=4,
+            # pin_memory=True
+
         )
         val_dataloader = torch.utils.data.DataLoader(
-            val_set,
+            dataset_eval,
             batch_size=self.batch_size,
             shuffle=False if self.multigpu else True,
             collate_fn=self.collate_ssd,
-            sampler=DistributedSampler(val_set) if self.multigpu else None,
+            sampler=DistributedSampler(dataset_eval) if self.multigpu else None,
+           
         )
         test_dataloader = torch.utils.data.DataLoader(
-            test_set,
+            dataset_test,
             batch_size=self.batch_size,
             shuffle=False if self.multigpu else True,
             collate_fn=self.collate_ssd,
-            sampler=DistributedSampler(test_set) if self.multigpu else None,
+            sampler=DistributedSampler(dataset_test) if self.multigpu else None,
+        
         )
 
         return train_dataloader, val_dataloader, test_dataloader
+
+import random
+
+def random_split(images_link, labels_link, test_size=0.15, val_size=0.15, seed=None):
+
+    if len(images_link) != len(labels_link):
+        raise ValueError("Images and labels must have the same length")
+
+    if seed is not None:
+        random.seed(seed)
+    data = list(zip(images_link, labels_link))
+    random.shuffle(data)
+
+    n = len(data)
+    test_amount = int(n * test_size)
+    val_amount = int(n * val_size)
+
+    test_links = data[:test_amount]
+    val_links = data[test_amount:test_amount + val_amount]
+    train_links = data[test_amount + val_amount:]
+
+    def unzip(dataset):
+        x, y = zip(*dataset)
+        return {"img_dir" : list(x), "lbl_dir" : list(y) }
+
+    train_links = unzip(train_links)
+    val_links = unzip(val_links)
+    test_links = unzip(test_links)
+
+    return train_links,val_links,test_links

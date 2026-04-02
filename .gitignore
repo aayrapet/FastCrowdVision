@@ -3,8 +3,11 @@ __pycache__/
 *.py[codz]
 *$py.class
 my_env/
-
+labels/
 .env
+**/[Ii]mages/
+JPEGImages/
+**/[Ii]mages
 test.ipynb
 # C extensions
 *.so
