@@ -62,24 +62,27 @@ def convert_label(annot_path,config : dict,labels_dir ):
                                 cls_id = names.index(cls)  # class id
                                 out_file.write(" ".join(str(a) for a in (cls_id, *bb)) + "\n")
 
-if not os.path.isdir(labels_dir) or not os.listdir(labels_dir):
-    os.makedirs(labels_dir, exist_ok=True)
-    annot_files = sorted(glob.glob(os.path.join(annot_dir, "*.xml")))
-    for f in annot_files:
-        convert_label(f, config,labels_dir)
-    print(f"Converted {len(annot_files)} annotations to YOLO format")
-else:
-    print("Labels already exist, skipping conversion")
 
-img_count = len(glob.glob(img_dir + "/*.jpg"))
-lbl_count = len(glob.glob(labels_dir + "/*.txt"))
 
-print(f"Images: {img_count}")
-print(f"Labels: {lbl_count}")
+if __name__=="__main__":
+    if not os.path.isdir(labels_dir) or not os.listdir(labels_dir):
+        os.makedirs(labels_dir, exist_ok=True)
+        annot_files = sorted(glob.glob(os.path.join(annot_dir, "*.xml")))
+        for f in annot_files:
+            convert_label(f, config,labels_dir)
+        print(f"Converted {len(annot_files)} annotations to YOLO format")
+    else:
+        print("Labels already exist, skipping conversion")
 
-if img_count == lbl_count:
-    print(f"OK: {img_count} images match {lbl_count} labels")
-    print("Images path", img_dir)
-    print("Labels path", labels_dir)
-else:
-    raise ValueError(f"Mismatch: {img_count} images vs {lbl_count} labels")
+    img_count = len(glob.glob(img_dir + "/*.jpg"))
+    lbl_count = len(glob.glob(labels_dir + "/*.txt"))
+
+    print(f"Images: {img_count}")
+    print(f"Labels: {lbl_count}")
+
+    if img_count == lbl_count:
+        print(f"OK: {img_count} images match {lbl_count} labels")
+        print("Images path", img_dir)
+        print("Labels path", labels_dir)
+    else:
+        raise ValueError(f"Mismatch: {img_count} images vs {lbl_count} labels")
