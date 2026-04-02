@@ -22,8 +22,8 @@ def load_data():
     os.makedirs(lbl_dir, exist_ok=True)
 
 
-    images = sorted(fs.ls(f"{BUCKET}/FastCrowdVision/datasets/voc/JPEGImages/JPEGImages"))
-    labels = sorted(fs.ls(f"{BUCKET}/FastCrowdVision/datasets/voc/labels/labels"))
+    images = fs.ls(f"{BUCKET}/FastCrowdVision/datasets/voc/JPEGImages/JPEGImages")
+    labels = fs.ls(f"{BUCKET}/FastCrowdVision/datasets/voc/labels/labels")
 
     fs.get(images, img_dir)
     fs.get(labels, lbl_dir)
