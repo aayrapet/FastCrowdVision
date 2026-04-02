@@ -215,6 +215,8 @@ class SSD(nn.Module):
         elif self.phase == "test":
             output = self.detection(confs, locs)
             return locs, confs,output
+        else:
+            raise ValueError("Unknown phase. Expected 'train' or 'test")
 
 
 def xavier(param):

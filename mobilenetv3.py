@@ -22,6 +22,7 @@ class SqueezeExcitationBlock(nn.Module):
             nn.ReLU(inplace=True),
 
             nn.Conv2d(reduced, input_size, 1),
+            nn.Hardsigmoid(inplace=True),
         )
 
     def forward(self, x):

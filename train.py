@@ -153,12 +153,11 @@ def train(
                 gt_box_list, labels_list, regressions, classifications
             )
             if no_pos:
-                total_loss = torch.tensor(0.0, device=model_device, requires_grad=True)
-            else:
+                continue
 
-                total_loss = Loss_conf + model_attributes.alpha * Loss_loc
-                train_loss = train_loss + total_loss.item() * N_images
-                train_samples = train_samples + N_images
+            total_loss = Loss_conf + model_attributes.alpha * Loss_loc
+            train_loss = train_loss + total_loss.item() * N_images
+            train_samples = train_samples + N_images
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()

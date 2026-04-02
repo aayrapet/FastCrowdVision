@@ -1,6 +1,6 @@
 from utils import center_to_corner
 from PIL import Image
-
+from utils import normalised_gt_coords
 import torch
 import glob
 import torch.nn as nn
@@ -75,7 +75,8 @@ class DataSSD300(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         img = Image.open(self.images[idx]).convert("RGB")#RGBA->RGB force 
 
-        W, H = img.size if self.gt_normalised else (1,1)
+        W_mult, H_mult = img.size if self.gt_normalised else (1,1)
+        W,H=img.size 
      
         # labels and gt boxes easy extraction
         with open(self.labels[idx]) as f:
@@ -84,7 +85,7 @@ class DataSSD300(torch.utils.data.Dataset):
             for line in f:
                 label, cx, cy, w, h = map(float, line.split())
                 #when normalised gt boxes coords ( in (0;1)) need to get actual coords FOR FURTHER TRANSFORMATION
-                gt_box.append((cx*W, cy*H , w*W , h*H ))
+                gt_box.append((cx*W_mult, cy*H_mult , w*W_mult , h*H_mult ))
 
                 label_list.append(
                     label + 1
@@ -99,8 +100,9 @@ class DataSSD300(torch.utils.data.Dataset):
         img, target = self.transform(img, {"boxes": boxes, "labels": label_list})
         boxes = target["boxes"]
         labels = target["labels"]
+        
 
-        return img, labels, boxes
+        return img, labels, boxes/300
 
 
 class DataGeneralLoader(nn.Module):
@@ -121,7 +123,7 @@ class DataGeneralLoader(nn.Module):
         images = torch.stack(images, dim=0)
         return images, list(labels), list(boxes)
 
-    def forward(self, dataset_train: DataSSD300, dataset_test: DataSSD300, dataset_eval: DataSSD300):
+    def forward(self, dataset_train: DataSSD300, dataset_eval: DataSSD300, dataset_test: DataSSD300):
         # https://stackoverflow.com/questions/65138643/examples-or-explanations-of-pytorch-dataloaders
         train_dataloader = torch.utils.data.DataLoader(
             dataset_train,
@@ -138,7 +140,7 @@ class DataGeneralLoader(nn.Module):
         val_dataloader = torch.utils.data.DataLoader(
             dataset_eval,
             batch_size=self.batch_size,
-            shuffle=False if self.multigpu else True,
+            
             collate_fn=self.collate_ssd,
             sampler=DistributedSampler(dataset_eval) if self.multigpu else None,
            
@@ -146,7 +148,7 @@ class DataGeneralLoader(nn.Module):
         test_dataloader = torch.utils.data.DataLoader(
             dataset_test,
             batch_size=self.batch_size,
-            shuffle=False if self.multigpu else True,
+           
             collate_fn=self.collate_ssd,
             sampler=DistributedSampler(dataset_test) if self.multigpu else None,
         

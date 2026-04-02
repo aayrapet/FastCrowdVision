@@ -14,6 +14,7 @@ import argparse
 from train import load_model
 from dataloader import DataGeneralLoader,DataSSD300
 from dataloader import random_split
+import glob
 
 parser = argparse.ArgumentParser(
     description="Single Shot MultiBox Detector Training With Pytorch"
@@ -303,6 +304,7 @@ if __name__ == "__main__":
         new_state_dict = {}
         for my_key, pretrained_key in zip(model.state_dict().keys(), state_dict.keys()):
             new_state_dict[my_key] = state_dict[pretrained_key]
+        model.load_state_dict(new_state_dict)
         backbone=model.features[:-1]
     
 
