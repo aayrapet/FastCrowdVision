@@ -279,6 +279,8 @@ def load_model(link, device, model,optimizer):
 
 
 def predict(model, image):
+    model.eval()
+    model.phase = "test"
     with torch.no_grad():
         output = model(image)
     return output

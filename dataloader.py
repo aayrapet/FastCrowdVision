@@ -1,8 +1,8 @@
 from utils import center_to_corner
 from PIL import Image
-from utils import normalised_gt_coords
+
 import torch
-import glob
+
 import torch.nn as nn
 from torch.utils.data.distributed import DistributedSampler
 from torchvision.transforms import v2
