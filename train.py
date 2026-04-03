@@ -201,7 +201,7 @@ def train(
 
         if val_samples > 0:
             val_loss = val_loss / val_samples
-            map_score = metric.compute()["map"].item()
+            map_score = metric.compute()["map_50"].item()
             metric.reset()
         else:
             val_loss = float("inf")

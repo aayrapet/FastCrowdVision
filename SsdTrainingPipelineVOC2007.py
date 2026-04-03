@@ -81,7 +81,7 @@ parser.add_argument(
 parser.add_argument(
     "--lr_schedule_epochs",
     default=[70, 90, 100],
-    nargs=3,
+    nargs="+",
     type=int,
     help="at these epochs lr rate will change",
 )
@@ -160,7 +160,7 @@ def pipeline(rank: int, nb_gpus: int, base):
     images_link = sorted(glob.glob(args.img_dir + "/*.jpg"))
     labels_link = sorted(glob.glob(args.lbl_dir + "/*.txt"))
 
-    train_links,val_links,test_links=random_split(images_link, labels_link, test_size=args.test_size, val_size=args.val_size, seed=None)
+    train_links,val_links,test_links=random_split(images_link, labels_link, test_size=args.test_size, val_size=args.val_size, seed=42)
 
     
     trainloader = DataSSD300(

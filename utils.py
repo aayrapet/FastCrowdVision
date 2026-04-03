@@ -40,22 +40,26 @@ def calculate_anchor_w_h1(sk, a):
 def calculate_anchor_w_h2(sk, a):
     return sk / mt.sqrt(a), sk * mt.sqrt(a)
 
-
 def normalised_anchor_coords(i, j, f, w, h):
-    """
-    i , j in len(feature map)=0...f-1
-    w=w_k_a
-    h=h_k_a
-    """
-    centerx = (j + 0.5) / f
-    centery = (i + 0.5) / f
+    cx = (j + 0.5) / f
+    cy = (i + 0.5) / f
+    return cx, cy, w, h 
 
-    x2 = min(centerx + w / 2, 1)
-    y2 = min(centery + h / 2, 1)
+# def normalised_anchor_coords(i, j, f, w, h):
+#     """
+#     i , j in len(feature map)=0...f-1
+#     w=w_k_a
+#     h=h_k_a
+#     """
+#     centerx = (j + 0.5) / f
+#     centery = (i + 0.5) / f
 
-    x1 = max(centerx - w / 2, 0)
-    y1 = max(centery - h / 2, 0)
-    return x1, y1, x2, y2
+#     x2 = min(centerx + w / 2, 1)
+#     y2 = min(centery + h / 2, 1)
+
+#     x1 = max(centerx - w / 2, 0)
+#     y1 = max(centery - h / 2, 0)
+#     return x1, y1, x2, y2
 
 
 def normalised_gt_coords(box, H, W):
