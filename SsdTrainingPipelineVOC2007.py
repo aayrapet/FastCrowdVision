@@ -127,13 +127,22 @@ parser.add_argument(
 )
 
 parser.add_argument("--lr", default=0.001, type=float, help="learning rate")
+
+parser.add_argument(
+    "--optimizer",
+    default="sgd",
+    type=str,
+    choices=["sgd", "adam"],
+    help="optimizer: SGD (with momentum) or Adam (both use --weight_decay)",
+)
+
+parser.add_argument(
+    "--momentum", default=0.9, type=float, help="momentum for SGD only (ignored for Adam)"
+)
+
 parser.add_argument(
     "--weight_decay", default=0.0005, type=float, help="weight decay for optimizer"
 )
-parser.add_argument(
-    "--momentum", default=0.9, type=float, help="momentum for SGD optimizer"
-)
-
 
 parser.add_argument(
     "--model_already_trained", default=None, type=str, help="path to model already trained, can be used to continue training"
@@ -222,12 +231,20 @@ def pipeline(rank: int, nb_gpus: int, base):
         ).to(device)
     epoch = 0
 
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        lr=args.lr,
-        weight_decay=args.weight_decay,
-        momentum=args.momentum,
-    )
+    if args.optimizer == "sgd":
+        optimizer = torch.optim.SGD(
+            model.parameters(),
+            lr=args.lr,
+            weight_decay=args.weight_decay,
+            momentum=args.momentum,
+        )
+    else:
+        optimizer = torch.optim.Adam(
+            model.parameters(),
+            lr=args.lr,
+            weight_decay=args.weight_decay,
+        )
+
     max_map=0
     wandbid=None
     if args.model_already_trained is not None:
