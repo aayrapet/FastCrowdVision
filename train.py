@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 
-wandb.login(key=os.getenv("WANDB_API_KEY"))
 entity = os.getenv("ENTITY")
 project = os.getenv("PROJECT")
 
@@ -82,6 +81,7 @@ def train(
             model_attributes = model.module
     if multigpu : 
         if model_device.index == 0:
+            wandb.login(key=os.getenv("WANDB_API_KEY"))
             run = wandb.init(
                 # Set the wandb entity where your project will be logged (generally your team name).
                 entity=entity,
@@ -100,6 +100,7 @@ def train(
         else:
             run = None
     else:
+        wandb.login(key=os.getenv("WANDB_API_KEY"))
         run = wandb.init(
                 # Set the wandb entity where your project will be logged (generally your team name).
                 entity=entity,

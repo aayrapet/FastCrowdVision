@@ -10,6 +10,7 @@ JPEGImages/
 **/[Ii]mages
 test.ipynb
 # C extensions
+$.pth
 *.so
 data/
 # Distribution / packaging
@@ -22,6 +23,7 @@ eggs/
 .eggs/
 lib/
 lib64/
+*.pth
 parts/
 sdist/
 var/
