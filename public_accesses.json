@@ -1,0 +1,24 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": ["s3:GetObject"],
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Resource": ["arn:aws:s3:::aayrapetyan/FastCrowdVision/*"]
+    },
+    {
+      "Action": ["s3:ListBucket"],
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Resource": ["arn:aws:s3:::aayrapetyan"],
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": [
+            "FastCrowdVision/*"
+          ]
+        }
+      }
+    }
+  ]
+}
