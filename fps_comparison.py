@@ -5,9 +5,12 @@ import time
 from mobilenetv3 import MobileNetV3Small,MobileNetV3Large
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Device: {device}")
+if device.type == "cuda":
+    print(f"GPU: {torch.cuda.get_device_name(0)}")
 nb_classes = 21  
 
-def measure_fps_cpu(model, model_name,device=torch.device("cpu"), input_size=300, n_warmup=10, n_iters=100):
+def measure_fps(model, model_name,device, input_size=300, n_warmup=10, n_iters=100):
     model.eval()
     model.phase = "test"
     model.to(device)
@@ -18,9 +21,14 @@ def measure_fps_cpu(model, model_name,device=torch.device("cpu"), input_size=300
         for _ in range(n_warmup):
             _ = model(x)
 
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+
         t0 = time.perf_counter()
         for _ in range(n_iters):
             _ = model(x)
+        if device.type == "cuda":
+            torch.cuda.synchronize()
         elapsed = time.perf_counter() - t0
 
     fps = n_iters / elapsed
@@ -60,7 +68,7 @@ for param in model.parameters():
     nb_parameters=nb_parameters+param.numel()
 print("Number parameters of MobileNetV3Small:",  nb_parameters)
 
-measure_fps_cpu(model,"MobileNetV3Small")
+measure_fps(model,"MobileNetV3Small",device)
 
 
 #------------Large--------
@@ -95,5 +103,5 @@ for param in model.parameters():
     nb_parameters=nb_parameters+param.numel()
 print("Number parameters of MobileNetV3Large:",  nb_parameters)
 
-measure_fps_cpu(model,"MobileNetV3Large")
+measure_fps(model,"MobileNetV3Large",device)
 
