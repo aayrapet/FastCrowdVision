@@ -13,17 +13,26 @@ from torchvision.models import VGG16_Weights
 import argparse
 from train import load_model
 from dataloader import DataGeneralLoader,DataSSD300
-from dataloader import random_split
+
 import glob
 
 parser = argparse.ArgumentParser(
     description="Single Shot MultiBox Detector Training With Pytorch"
 )
 
-parser.add_argument(
-    "img_dir", type=str, help="type folder path  with images in jpef/png format "
-)
 
+parser.add_argument(
+    "train_img_dir", type=str, help="training images folder path (jpeg/png)"
+)
+parser.add_argument(
+    "train_lbl_dir", type=str, help="training Yolo-style labels folder path"
+)
+parser.add_argument(
+    "val_img_dir", type=str, help="validation images folder path (jpeg/png)"
+)
+parser.add_argument(
+    "val_lbl_dir", type=str, help="validation Yolo-style labels folder path"
+)
 parser.add_argument(
     "backbone",
     type=str,
@@ -32,11 +41,7 @@ parser.add_argument(
     help="backbone to use in SSD, note that all non VGG backbones are only available for SSDLite"
 )
 
-parser.add_argument(
-    "lbl_dir",
-    type=str,
-    help="select Yolo-style labels folder path (each file of label per image is txt file )",
-)
+
 
 parser.add_argument(
     "nb_classes", type=int, help="number of classes +1 (background) for your dataset"
@@ -63,20 +68,13 @@ parser.add_argument(
     help="select batch size during training, has to be divisible by number of gpus",
 )
 
-parser.add_argument(
-    "--test_size", default=0.15, type=float, help="prct of dataset used for test set  "
-)
+
 
 parser.add_argument(
     "--gamma", default=0.1, type=float, help="Gamma update for SGD optimizer "
 )
 
-parser.add_argument(
-    "--val_size",
-    default=0.15,
-    type=float,
-    help="prct of dataset used for validation set  ",
-)
+
 
 parser.add_argument(
     "--lr_schedule_epochs",
@@ -165,22 +163,17 @@ def pipeline(rank: int, nb_gpus: int, base):
         raise ValueError("no nb gpus specified")
 
 
-
-    images_link = sorted(glob.glob(args.img_dir + "/*.jpg"))
-    labels_link = sorted(glob.glob(args.lbl_dir + "/*.txt"))
-
-    train_links,val_links,test_links=random_split(images_link, labels_link, test_size=args.test_size, val_size=args.val_size, seed=42)
+    train_images = sorted(glob.glob(args.train_img_dir + "/*.jpg"))
+    train_labels = sorted(glob.glob(args.train_lbl_dir + "/*.txt"))
+    val_images = sorted(glob.glob(args.val_img_dir + "/*.jpg"))
+    val_labels = sorted(glob.glob(args.val_lbl_dir + "/*.txt"))
 
     
     trainloader = DataSSD300(
-            **train_links, mode="train", gt_normalised=args.gt_normalised
+            img_dir=train_images, lbl_dir=train_labels, mode="train", gt_normalised=args.gt_normalised
     )
     valloader = DataSSD300(
-            **val_links, mode="test", gt_normalised=args.gt_normalised
-    )
-
-    testloader = DataSSD300(
-            **test_links, mode="test", gt_normalised=args.gt_normalised
+            img_dir=val_images, lbl_dir=val_labels, mode="test", gt_normalised=args.gt_normalised
     )
 
 
@@ -188,7 +181,8 @@ def pipeline(rank: int, nb_gpus: int, base):
             batch_size=args.batch_size,
             multigpu=True if nb_gpus > 1 else False,
     )
-    train_dataloader, val_dataloader, test_dataloader = GeneralLoader(trainloader,valloader,testloader)
+    train_dataloader, val_dataloader, _ = GeneralLoader(trainloader, valloader, valloader)
+
 
     common_kwargs = dict(
         nb_classes=args.nb_classes,
