@@ -96,7 +96,8 @@ def load_all_data(kaggle_path,project_root,mode,img_dir,annot_dir):
                             continue
                         xmin, ymin, xmax, ymax = int(parts[1]), int(parts[2]), int(parts[3]), int(parts[4])
                         bb = convert_box((w, h), [xmin, xmax, ymin, ymax])
-                        out_file.write(f"{cls_id} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
+                        #this dataset classes start with 1, i need yolo format tarting at 0 
+                        out_file.write(f"{cls_id-1} {bb[0]} {bb[1]} {bb[2]} {bb[3]}\n")
 
                 if os.path.getsize(lb_path) > 0:
                     shutil.copy(image_file, image_path)
