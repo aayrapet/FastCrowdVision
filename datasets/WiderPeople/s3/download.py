@@ -1,4 +1,4 @@
-"all data from here is already processed and loaded to S3 using kaggle/download.py and configuration in sspcloud.fr"
+"all data from here is already processed and loaded to S3 using kaggle/first_download.py and configuration in sspcloud.fr"
 
 import os
 import s3fs

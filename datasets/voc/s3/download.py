@@ -1,32 +1,47 @@
-
-"all data from here is already processed and loaded to S3 using kaggle/download.py and configuration in sspcloud.fr"
-import os 
+import os
 import s3fs
+
 fs = s3fs.S3FileSystem(
     client_kwargs={"endpoint_url": "https://minio.lab.sspcloud.fr"},
-    anon=True  
+    anon=True
 )
-BUCKET="aayrapetyan"
+
+BUCKET = "aayrapetyan"
 
 def load_data():
     cwd = os.getcwd()
     project_root = cwd.split("FastCrowdVision")[0] + "FastCrowdVision"
 
-    img_dir = os.path.join(project_root, "datasets", "voc", "images")
-    lbl_dir = os.path.join(project_root, "datasets", "voc", "labels")
+    train_dir = os.path.join(project_root, "datasets", "voc", "train")
+    val_dir = os.path.join(project_root, "datasets", "voc", "val")
+    test_dir = os.path.join(project_root, "datasets", "voc", "test")
 
-    print("Images path", img_dir)
-    print("Labels path", lbl_dir)
+    for d in [train_dir, val_dir, test_dir]:
+        os.makedirs(d, exist_ok=True)
 
-    os.makedirs(img_dir, exist_ok=True)
-    os.makedirs(lbl_dir, exist_ok=True)
+    downloads = [
+        (f"{BUCKET}/FastCrowdVision/datasets/voc/train/images", train_dir),
+        (f"{BUCKET}/FastCrowdVision/datasets/voc/train/labels", train_dir),
 
+        (f"{BUCKET}/FastCrowdVision/datasets/voc/val/images", val_dir),
+        (f"{BUCKET}/FastCrowdVision/datasets/voc/val/labels", val_dir),
 
-    images = fs.ls(f"{BUCKET}/FastCrowdVision/datasets/voc/JPEGImages/JPEGImages")
-    labels = fs.ls(f"{BUCKET}/FastCrowdVision/datasets/voc/labels/labels")
+        (f"{BUCKET}/FastCrowdVision/datasets/voc/test/images", test_dir),
+        (f"{BUCKET}/FastCrowdVision/datasets/voc/test/labels", test_dir),
+    ]
 
-    fs.get(images, img_dir)
-    fs.get(labels, lbl_dir)
+    for s3_path, local_parent in downloads:
+        name = s3_path.split("/")[-1]
+        print(f"Downloading {name} to {local_parent}/{name} ...")
+        fs.get(s3_path, os.path.join(local_parent, name), recursive=True)
 
-if __name__=="__main__":
+    print("Download completed.")
+    print("Train images:", os.path.join(train_dir, "images"))
+    print("Train labels:", os.path.join(train_dir, "labels"))
+    print("Val images:", os.path.join(val_dir, "images"))
+    print("Val labels:", os.path.join(val_dir, "labels"))
+    print("Test images:", os.path.join(test_dir, "images"))
+    print("Test labels:", os.path.join(test_dir, "labels"))
+
+if __name__ == "__main__":
     load_data()

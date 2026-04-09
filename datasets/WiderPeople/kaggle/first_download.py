@@ -5,7 +5,7 @@ import yaml
 from PIL import Image
 import shutil
 import re
-
+#this file to extract raw data in raw format from kaggle storage, preprocess it to yolo format
 
 cwd=os.getcwd()
 #independently from where you are, project root is this
