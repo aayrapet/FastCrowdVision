@@ -14,4 +14,4 @@ Set your wandb key in `.env`.
 - [Squeeze-and-Excitation Networks](https://arxiv.org/abs/1709.01507)
 - [amdegroot/ssd.pytorch](https://github.com/amdegroot/ssd.pytorch)
 - [PyTorch torchvision models](https://github.com/pytorch/vision/blob/main/torchvision/models/mobilenetv2.py)
-- [Our FastCrowdVision model on HF](https://huggingface.co/aayrapet/SsdFastCrowdVision/blob/main/README.md](https://huggingface.co/aayrapet/SsdFastCrowdVision)
+- [Our FastCrowdVision model on HF](https://huggingface.co/aayrapet/SsdFastCrowdVision)
