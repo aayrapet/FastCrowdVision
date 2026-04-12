@@ -7,6 +7,8 @@ import torch.nn as nn
 from torch.utils.data.distributed import DistributedSampler
 from torchvision.transforms import v2
 from torchvision import tv_tensors
+from transforms import train_transform,test_val_transform
+
 
 class DataSSD300(torch.utils.data.Dataset):
     """
@@ -22,49 +24,19 @@ class DataSSD300(torch.utils.data.Dataset):
 
     """
 
-    def __init__(self, img_dir : list[str], lbl_dir : list[str],mode, gt_normalised: bool = True,trials=10):
+    def __init__(self, img_dir : list[str], lbl_dir : list[str],mode, gt_normalised: bool = True):
         self.images = img_dir
         self.labels = lbl_dir
         if mode =="train":
             #for training set we use data augmentations, but not for test set
             self.transform = v2.Compose(
-                [
-                    
-                    v2.RandomIoUCrop(min_scale = 0.3, max_scale  = 1.0, min_aspect_ratio = 0.5, max_aspect_ratio= 2.0, sampler_options = [0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0],trials=trials),
-                    #https://docs.pytorch.org/vision/main/generated/torchvision.transforms.v2.SanitizeBoundingBoxes.html
-                    v2.ClampBoundingBoxes(),
-                    v2.SanitizeBoundingBoxes(),
-                    v2.RandomHorizontalFlip(p=0.5),
-                    #https://arxiv.org/pdf/1312.5402
-                    v2.RandomPhotometricDistort(
-                        brightness=(0.5, 1.5),
-                        contrast=(0.5, 1.5),
-                        saturation=(0.5, 1.5),
-                    ),
-
-                    v2.Resize((300, 300)),
-                    v2.ToImage(),  
-                    v2.ToDtype(torch.float32, scale=True),
-                    #we suppose backbones were pretrained on image net 
-                    v2.Normalize(
-                            mean=[0.485, 0.456, 0.406],
-                            std=[0.229, 0.224, 0.225]
-                    ),
-                ]
+                train_transform
+    
             )
         else:
             self.transform = v2.Compose(
-                [
-                    v2.Resize((300, 300)),
-                    v2.ToImage(),  
-                    v2.ToDtype(torch.float32, scale=True),
-                    #we suppose backbones were pretrained on image net 
-                    #we take their stat
-                    v2.Normalize(
-                            mean=[0.485, 0.456, 0.406],
-                            std=[0.229, 0.224, 0.225]
-                    ),
-                ]
+                test_val_transform
+                
             )
         #https://docs.pytorch.org/vision/main/auto_examples/transforms/plot_transforms_getting_started.html
         self.gt_normalised = gt_normalised
@@ -159,7 +131,7 @@ class DataGeneralLoader(nn.Module):
 import random
 
 def random_split(images_link, labels_link, test_size=0.15, val_size=0.15, seed=None):
-
+    """this function is not used anymore in this repo,"""
     if len(images_link) != len(labels_link):
         raise ValueError("Images and labels must have the same length")
 

@@ -3,11 +3,13 @@ torchaudio
 torchvision
 torchmetrics
 duckdb
-pandas>=2.0,<3.0
 numpy>=1.26,<2.2
 pyarrow
 pillow
+kagglehub
 pyyaml
 faster-coco-eval
+dotenv
 s3fs
 wandb
+huggingface_hub

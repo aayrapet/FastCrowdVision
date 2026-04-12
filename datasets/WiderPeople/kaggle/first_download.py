@@ -59,9 +59,12 @@ def load_all_data(kaggle_path,project_root,mode,img_dir,annot_dir):
         os.makedirs(os.path.join(storage, "images"), exist_ok=True)
 
         #id of image : image path
-        images = {re.sub(r"\D", "", f.split("/")[-1]): f for f in glob.glob(f"{img_dir}/*")}
+        images = {re.sub(r"\D", "", os.path.basename(f)): f for f in glob.glob(os.path.join(img_dir,'*'))}
+        for key,val in images.items():
+             print(key,val)
+             break
         if mode!="test":
-            annots = {re.sub(r"\D", "", f.split("/")[-1]) : f for f in glob.glob(f"{annot_dir}/*")}
+            annots = {re.sub(r"\D", "", os.path.basename(f)) : f for f in glob.glob(os.path.join(annot_dir,'*'))}
         
         #look at all images/labels of mode_dataset
         links=os.path.join(kaggle_path, f"{mode}.txt")

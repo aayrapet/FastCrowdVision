@@ -265,23 +265,3 @@ def train(
         run.finish()
 
 
-def load_model(link, device, model,optimizer):
-    loaded_state = torch.load(link, map_location=device)
-    model.load_state_dict(loaded_state["model_state"])
-    model.to(device)
-    old_lr=optimizer.param_groups[0]["lr"]
-    optimizer.load_state_dict(loaded_state["optimizer"])
-    wandbid=loaded_state.get("wandb_run_id",None)
-    #we update the lr as i did schedule lr and it did not work well 
-    for param_group in optimizer.param_groups:
-            param_group["lr"] = old_lr
-
-    return model , loaded_state["epoch"], optimizer,loaded_state.get("max_map",None),wandbid
-
-
-def predict(model, image):
-    model.eval()
-    model.phase = "test"
-    with torch.no_grad():
-        output = model(image)
-    return output

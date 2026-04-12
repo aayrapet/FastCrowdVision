@@ -81,8 +81,8 @@ def load_train_val_data(kaggle_path,project_root,mode,img_dir,annot_dir):
             os.makedirs(os.path.join(storage, "images"), exist_ok=True)
 
             #id of image : image path
-            images = {re.sub(r"\D", "", f.split("/")[-1]): f for f in glob.glob(f"{img_dir}/*")}
-            annots = {re.sub(r"\D", "", f.split("/")[-1]) : f for f in glob.glob(f"{annot_dir}/*")}
+            images = {re.sub(r"\D", "", os.path.basename(f)): f for f in glob.glob(os.path.join(img_dir,"*"))}
+            annots = {re.sub(r"\D", "", os.path.basename(f)) : f for f in glob.glob(os.path.join(annot_dir,"*"))}
             
             #look at all images/labels of mode_dataset
             
@@ -154,7 +154,7 @@ def load_test_data(kaggle_path,project_root,img_dir,annot_dir):
 
             for annot_file,img_file in zip(annot_files,img_files):
              
-                name_image=re.sub(r"\D", "", img_file.split('/')[-1])
+                name_image=re.sub(r"\D", "", os.path.basename(img_file))
                 image_path=os.path.join(storage,"images",f"{name_image}.jpg")
                 annot_path = annot_file
 
