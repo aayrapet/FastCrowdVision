@@ -56,8 +56,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--gt_normalised",
-    default=True,
-    type=bool,
+    default=True, action=argparse.BooleanOptionalAction,
     help="in your dataset are ground truth boxes in labels already normalised between 0 and 1?",
 )
 

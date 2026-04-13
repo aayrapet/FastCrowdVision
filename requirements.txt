@@ -9,7 +9,7 @@ pillow
 kagglehub
 pyyaml
 faster-coco-eval
-dotenv
+python-dotenv
 s3fs
 wandb
 huggingface_hub

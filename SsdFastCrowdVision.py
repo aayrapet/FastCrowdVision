@@ -10,9 +10,13 @@ from torchvision.transforms import v2
 import os
 from draw_inference import draw_boxes_with_labels
 cwd=os.getcwd()
+from IPython.display import display
+
 import yaml
 
-
+transform = v2.Compose(
+                test_val_transform               
+)
 #independently from where you are, project root is this
 project_root = cwd.split("FastCrowdVision")[0] + "FastCrowdVision"
 
@@ -33,8 +37,9 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--show_labels", default=True,
-    type=bool, help="On image do you want to show labels and probability"
+    #https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+    "--show_labels", default=True, action=argparse.BooleanOptionalAction,
+    help="On image do you want to show labels and probability"
 )
 
 parser.add_argument(
@@ -61,9 +66,7 @@ def make_backbone():
     mn = MobileNetV3Large(0.1, 1000, 1280)
     return mn.features[:-1]
 
-transform = v2.Compose(
-                test_val_transform               
-)
+
 
 
 if __name__=="__main__":
@@ -107,13 +110,13 @@ if __name__=="__main__":
     #get model detections : ssd forward pass + NMS
     topk,x=predict_image_path(modelW,  img,transform)
     out=draw_boxes_with_labels(
+    img,
     config,
     topk,
-    x,
     H,W,
     score_thr= args.score_thr,
     show_scores= args.show_labels)
-    out.show()
+    out.save("result.jpg")
 
     
     
