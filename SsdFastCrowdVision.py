@@ -1,4 +1,5 @@
 import torch
+import time 
 from huggingface_hub import hf_hub_download
 from mobilenetv3 import MobileNetV3Large
 from ssd import SSDLite
@@ -66,7 +67,25 @@ def make_backbone():
     mn = MobileNetV3Large(0.1, 1000, 1280)
     return mn.features[:-1]
 
+def measure_fps_cpu(model, device=torch.device("cpu"), input_size=300, n_warmup=10, n_iters=100):
+    model.eval()
+    model.phase = "test"
+    model.to(device)
 
+    x = torch.randn(1, 3, input_size, input_size, device=device)
+
+    with torch.no_grad():
+        for _ in range(n_warmup):
+            _ = model(x)
+
+        t0 = time.perf_counter()
+        for _ in range(n_iters):
+            _ = model(x)
+        elapsed = time.perf_counter() - t0
+
+    fps = n_iters / elapsed
+    print(f"~{fps:.2f} FPS ({n_iters} iters, {input_size}x{input_size}, {device})")
+    return fps
 
 
 if __name__=="__main__":
@@ -103,6 +122,13 @@ if __name__=="__main__":
     modelW , _, _,maxmapW,_=load_model(path, device, modelW, optimizerW)
     print("map on WiderPeople dataset:",maxmapW)
     
+    # import time
+# import torch
+
+
+
+# usage after model is loaded
+    measure_fps_cpu(modelW)
 
     img = Image.open(args.image_path).convert("RGB")#RGBA->RGB force 
     W,H=img.size 
