@@ -10,16 +10,15 @@ from PIL import Image
 from torchvision.transforms import v2
 import os
 from draw_inference import draw_boxes_with_labels
-cwd=os.getcwd()
-from IPython.display import display
+
+
 
 import yaml
 
 transform = v2.Compose(
                 test_val_transform               
 )
-#independently from where you are, project root is this
-project_root = cwd.split("FastCrowdVision")[0] + "FastCrowdVision"
+project_root = os.path.dirname(os.path.abspath(__file__))
 
 #get names of labels
 wider_dir=os.path.join(project_root, "datasets", "WiderPeople","widerpeople.yaml")
@@ -28,27 +27,6 @@ with open(wider_dir) as f:
     cfg = yaml.safe_load(f)
 config = cfg["names"] 
 
-
-parser = argparse.ArgumentParser(
-    description="SSD model at inference time"
-)
-
-parser.add_argument(
-    "image_path", type=str, help="image path file (jpeg/png)"
-)
-
-parser.add_argument(
-    #https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
-    "--show_labels", default=True, action=argparse.BooleanOptionalAction,
-    help="On image do you want to show labels and probability"
-)
-
-parser.add_argument(
-    "--score_thr", default=0.25,
-    type=float, help="Probability threshold for filtering bboxes on images"
-)
-
-args = parser.parse_args()
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -89,6 +67,28 @@ def measure_fps_cpu(model, device=torch.device("cpu"), input_size=300, n_warmup=
 
 
 if __name__=="__main__":
+
+
+    parser = argparse.ArgumentParser(
+        description="SSD model at inference time"
+    )
+
+    parser.add_argument(
+        "image_path", type=str, help="image path file (jpeg/png)"
+    )
+
+    parser.add_argument(
+        #https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+        "--show_labels", default=True, action=argparse.BooleanOptionalAction,
+        help="On image do you want to show labels and probability"
+    )
+
+    parser.add_argument(
+        "--score_thr", default=0.25,
+        type=float, help="Probability threshold for filtering bboxes on images"
+    )
+
+    args = parser.parse_args()
     backbone_w = make_backbone()   
     modelW = SSDLite(
         backbone_config_path="config/ssdlite_mobilenetv3large.yaml",

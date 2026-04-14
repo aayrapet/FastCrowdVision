@@ -13,3 +13,9 @@ python-dotenv
 s3fs
 wandb
 huggingface_hub
+
+opencv-python
+fastapi
+uvicorn[standard]
+python-multipart
+norfair
