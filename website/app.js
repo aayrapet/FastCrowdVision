@@ -1,8 +1,5 @@
 // app.js — Frontend for FastCrowdVision.
-//
-// REWRITTEN: replaced TF.js COCO-SSD (client-side detection) with
-// WebSocket communication to the Python backend (server-side SSD + norfair).
-// Uses Option A (server-paced): the server processes one frame at a time,
+// WebSocket communication to the Python backend (server-side SSD + norfair tracking).
 // sends results, and the browser seeks the video to match.
 
 // ── DOM elements ────────────────────────────────────────────────────
@@ -28,14 +25,11 @@ const frameSkipValue = document.getElementById("frameSkipValue");
 
 // ── State ───────────────────────────────────────────────────────────
 
-// ADDED: session_id received from server after uploading video
 let sessionId = null;
-// ADDED: WebSocket connection to the backend
 let ws = null;
-// ADDED: video file selected by the user (needed for both local preview and upload)
 let selectedFile = null;
-// ADDED: video metadata from server (fps, total frames)
 let videoMeta = null;
+let currentVideoURL = null;
 
 // ── Slider listeners ────────────────────────────────────────────────
 
@@ -195,11 +189,16 @@ function startDetection() {
     }
 
     if (data.type === "done") {
-      // server finished processing the entire video
+      // server finished processing the entire video — reset UI so user can
+      // upload a new video without reloading the page
       detectionStatus.textContent = "Terminé";
       totalUnique.textContent = data.total_unique;
       progressInfo.textContent = "Terminé";
       stopDetectionBtn.disabled = true;
+      startDetectionBtn.disabled = true;
+      ws = null;
+      sessionId = null;
+      serverStatus.textContent = "Prêt — choisissez une nouvelle vidéo";
       return;
     }
 
@@ -210,9 +209,12 @@ function startDetection() {
   };
 
   ws.onclose = () => {
-    detectionStatus.textContent = detectionStatus.textContent === "Terminé"
-      ? "Terminé" : "Connexion fermée";
-    startDetectionBtn.disabled = false;
+    // CHANGED: don't overwrite "Terminé" status, and don't re-enable start
+    // button — user needs to upload a new video first
+    if (detectionStatus.textContent !== "Terminé") {
+      detectionStatus.textContent = "Connexion fermée";
+      startDetectionBtn.disabled = !sessionId;
+    }
     stopDetectionBtn.disabled = true;
   };
 
@@ -235,23 +237,47 @@ function stopDetection() {
 
 // ── Event listeners ─────────────────────────────────────────────────
 
-// CHANGED: on file select, show local preview AND upload to server
+// CHANGED: on file select, show local preview AND upload to server.
+// Also resets all state from the previous video so the user doesn't
+// need to reload the page.
 videoUpload.addEventListener("change", async (event) => {
   const file = event.target.files[0];
   if (!file) return;
 
   selectedFile = file;
 
-  // show local video preview so the user sees the video
-  const videoURL = URL.createObjectURL(file);
-  video.src = videoURL;
+  // reset all state from the previous video
+  if (ws) { ws.close(); ws = null; }
+  sessionId = null;
+  videoMeta = null;
+  for (const key in trackColors) delete trackColors[key];
+  clearOverlay();
+  currentCount.textContent = "0";
+  totalUnique.textContent = "0";
+  progressInfo.textContent = "—";
+  detectionStatus.textContent = "Envoi en cours…";
+  startDetectionBtn.disabled = true;
+  stopDetectionBtn.disabled = true;
+
+  // revoke old blob URL to free memory, then create a new one
+  if (currentVideoURL) URL.revokeObjectURL(currentVideoURL);
+  currentVideoURL = URL.createObjectURL(file);
+  video.src = currentVideoURL;
+  video.load();
+
+  // reset file input so the same file can be re-selected later
+  event.target.value = "";
 
   // upload to server in the background
   try {
     sessionId = await uploadVideo(file);
-    startDetectionBtn.disabled = false;
+    if (sessionId) {
+      startDetectionBtn.disabled = false;
+      detectionStatus.textContent = "Prêt — lancez la détection";
+    }
   } catch (err) {
     console.error("Upload error:", err);
+    detectionStatus.textContent = "Erreur lors de l'envoi";
   }
 });
 

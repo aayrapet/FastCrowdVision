@@ -43,7 +43,7 @@ def startup():
     print("Server ready — model loaded on", device)
 
 
-# ── Upload endpoint ──────────────────────────────────────────────────
+MAX_VIDEO_DURATION_SEC=40
 
 @app.post("/upload")
 async def upload_video(file: UploadFile = File(...)):
@@ -105,6 +105,7 @@ async def detect_ws(websocket: WebSocket):
             hit_counter_max=15,
             initialization_delay=3,
         )
+        max_frame=int(fps*MAX_VIDEO_DURATION_SEC)
 
         # keep track of every unique ID seen across all frames
         all_track_ids: set[int] = set()
@@ -112,7 +113,7 @@ async def detect_ws(websocket: WebSocket):
 
         while True:
             ret, frame_bgr = cap.read()
-            if not ret:
+            if not ret or frame_idx >=max_frame:
                 break
 
             # skip frames if requested (frame_skip=1 means process every 2nd frame)
@@ -210,6 +211,5 @@ async def detect_ws(websocket: WebSocket):
 
 
 # ── Serve the website static files (HTML, CSS, JS) ──────────────────
-# This is mounted LAST so that /upload and /ws/detect are matched first.
-# html=True makes it serve index.html when you visit http://localhost:8000/
+
 app.mount("/", StaticFiles(directory=os.path.join(project_root, "website"), html=True), name="website")
