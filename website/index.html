@@ -3,27 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Détection de personnes sur vidéo</title>
+  <title>FastCrowdVision — Détection et suivi de personnes</title>
   <link rel="stylesheet" href="style.css" />
 
-  <!-- TensorFlow.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0"></script>
-
-  <!-- COCO-SSD -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+  <!-- REMOVED: TensorFlow.js and COCO-SSD script tags.
+       Detection now runs on the Python backend (SSDLite + norfair tracker)
+       and results arrive via WebSocket. -->
 </head>
 <body>
   <div class="page">
-    <h1>Détection de personnes sur vidéo</h1>
+    <h1>FastCrowdVision — Détection et suivi de personnes</h1>
     <p class="subtitle">
-      Téléverse une vidéo et lance la détection des personnes pendant la lecture.
+      Téléverse une vidéo, le serveur détecte et suit les personnes image par image.
     </p>
 
     <div class="controls">
+      <!-- CHANGED: upload now POSTs to the server instead of just loading locally -->
       <label class="upload-label" for="videoUpload">Choisir une vidéo</label>
       <input type="file" id="videoUpload" accept="video/*" />
 
-      <button id="playPauseBtn" disabled>Lecture</button>
+      <!-- REMOVED: play/pause button — server controls video pace (Option A) -->
       <button id="startDetectionBtn" disabled>Démarrer la détection</button>
       <button id="stopDetectionBtn" disabled>Arrêter la détection</button>
     </div>
@@ -32,47 +31,52 @@
       <div class="slider-group">
         <label for="scoreThreshold">
           Seuil de confiance :
-          <span id="scoreThresholdValue">0.50</span>
+          <span id="scoreThresholdValue">0.25</span>
         </label>
         <input
           type="range"
           id="scoreThreshold"
-          min="0.1"
+          min="0.05"
           max="0.95"
           step="0.05"
-          value="0.5"
+          value="0.25"
         />
       </div>
 
+      <!-- CHANGED: replaced detection interval slider with frame skip slider.
+           Server processes every Nth frame — higher skip = faster but less accurate -->
       <div class="slider-group">
-        <label for="intervalRange">
-          Intervalle de détection (ms) :
-          <span id="intervalValue">300</span>
+        <label for="frameSkipRange">
+          Saut d'images (frame skip) :
+          <span id="frameSkipValue">0</span>
         </label>
         <input
           type="range"
-          id="intervalRange"
-          min="100"
-          max="1000"
-          step="50"
-          value="300"
+          id="frameSkipRange"
+          min="0"
+          max="5"
+          step="1"
+          value="0"
         />
       </div>
     </div>
 
     <div class="status-panel">
-      <p><strong>Statut modèle :</strong> <span id="modelStatus">Chargement...</span></p>
+      <p><strong>Statut serveur :</strong> <span id="serverStatus">En attente</span></p>
       <p><strong>Statut détection :</strong> <span id="detectionStatus">Inactive</span></p>
-      <p><strong>Nombre de personnes :</strong> <span id="personCount">0</span></p>
+      <!-- ADDED: separate current count and total unique count -->
+      <p><strong>Personnes visibles :</strong> <span id="currentCount">0</span></p>
+      <p><strong>Total personnes uniques :</strong> <span id="totalUnique">0</span></p>
+      <!-- ADDED: progress indicator -->
+      <p><strong>Progression :</strong> <span id="progressInfo">—</span></p>
     </div>
 
     <div class="video-wrapper" id="videoWrapper">
-      <video id="video" controls></video>
+      <video id="video"></video>
       <canvas id="overlay"></canvas>
     </div>
 
-    <!-- Canvas caché pour capturer les frames -->
-    <canvas id="hiddenCanvas" class="hidden-canvas"></canvas>
+    <!-- REMOVED: hidden canvas — no longer needed, server reads frames via OpenCV -->
   </div>
 
   <script src="app.js"></script>
