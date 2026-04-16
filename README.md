@@ -1,6 +1,10 @@
 # FastCrowdVision
 Implementing vision algorithms for human detection on mobile devices.
 
+
+
+for inference uvicorn server:app --reload
+
 ## Setup
 ```
 cp .env.example .env
