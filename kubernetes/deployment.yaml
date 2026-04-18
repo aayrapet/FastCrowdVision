@@ -1,0 +1,96 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# kubernetes/deployment.yaml
+# Déploiement FastCrowdVision sur le SSP Cloud (Onyxia / Kubernetes)
+#
+# Remplacer <REGISTRY> par votre registry (ex: harbor.lab.sspcloud.fr/votreuser)
+# Remplacer <TAG>      par le tag de votre image (ex: latest, v1.0.0)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastcrowdvision
+  labels:
+    app: fastcrowdvision
+    version: "1.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastcrowdvision
+  template:
+    metadata:
+      labels:
+        app: fastcrowdvision
+    spec:
+      # Sécurité : pas de root, filesystem read-only (sauf /tmp et cache HF)
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+        - name: fastcrowdvision
+          image: <REGISTRY>/fastcrowdvision:<TAG>
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+
+          env:
+            # Le cache HuggingFace est stocké dans le volume persistant
+            - name: HF_HOME
+              value: /cache/huggingface
+            # Désactive la télémétrie HuggingFace
+            - name: TRANSFORMERS_OFFLINE
+              value: "0"
+
+          # Ressources : ajuster selon les nœuds disponibles sur le SSP Cloud
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+
+          # Sonde de démarrage : attend que le modèle soit chargé (jusqu'à 3 min)
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 18
+            periodSeconds: 10
+
+          # Sonde de vie : redémarre le pod si l'API ne répond plus
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+
+          # Sonde de disponibilité : retire le pod du Service si pas prêt
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          volumeMounts:
+            # Cache HuggingFace persistant (évite de re-télécharger le modèle)
+            - name: hf-cache
+              mountPath: /cache/huggingface
+            # /tmp en mémoire pour les fichiers vidéo temporaires
+            - name: tmp-dir
+              mountPath: /tmp
+
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: fastcrowdvision-hf-cache
+        - name: tmp-dir
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi

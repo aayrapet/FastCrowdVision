@@ -1,0 +1,18 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# kubernetes/pvc.yaml
+# Volume persistant pour le cache HuggingFace
+# (évite de re-télécharger les poids du modèle à chaque redémarrage du pod)
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fastcrowdvision-hf-cache
+  labels:
+    app: fastcrowdvision
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn   # StorageClass disponible sur le SSP Cloud
+  resources:
+    requests:
+      storage: 5Gi             # ~1.5 Go pour les poids + marge

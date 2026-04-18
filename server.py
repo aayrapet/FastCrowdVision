@@ -21,6 +21,10 @@ from norfair import Tracker, Detection
 from inference import load_ssd_model, detect_frame
 
 app = FastAPI()
+@app.get("/health")
+def health():
+    """Endpoint utilisé par le HEALTHCHECK Docker et les sondes Kubernetes."""
+    return {"status": "ok", "model_loaded": model is not None}
 
 # --- globals: loaded once at startup, shared across all requests ---
 model = None

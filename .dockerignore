@@ -1,0 +1,51 @@
+# .dockerignore — exclut les fichiers inutiles de l'image Docker
+
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Environnements virtuels
+.venv/
+venv/
+env/
+my_env/
+
+# Données & modèles locaux (téléchargés au runtime via HuggingFace / S3)
+data/
+*.pth
+*.pt
+datasets/WiderPeople/images/
+datasets/voc/images/
+train/
+val/
+test/
+
+# Notebooks & scripts d'entraînement (pas nécessaires dans l'API)
+main.ipynb
+SsdTrainingPipelineVOC2007.py
+*.ipynb
+
+# Secrets
+.env
+*.env
+
+# CI/CD & outils
+.github/
+mlruns/
+wandb/
+
+# Divers
+*.log
+*.zip
+*.tar.gz
+.DS_Store
