@@ -1,10 +1,5 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # kubernetes/pvc.yaml
-# Volume persistant pour le cache HuggingFace
-# (évite de re-télécharger les poids du modèle à chaque redémarrage du pod)
-#
-# Sur le SSP Cloud, la StorageClass disponible est "onyxia" (par défaut).
-# Pour vérifier : kubectl get storageclass
 # ──────────────────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -15,8 +10,6 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  # Laisser vide pour utiliser la StorageClass par défaut du cluster SSP Cloud
-  # ou spécifier "onyxia" si kubectl get storageclass la retourne
   resources:
     requests:
       storage: 5Gi             # ~1.5 Go pour les poids + marge

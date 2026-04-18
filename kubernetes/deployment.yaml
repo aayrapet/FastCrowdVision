@@ -1,7 +1,5 @@
 # ─────────────────────────────────────────────────────────────────
 # kubernetes/deployment.yaml
-# ⚠️  Remplacer <DOCKERHUB_USER> par votre compte Docker Hub
-#     Remplacer <TAG>             par le tag voulu (ex: latest)
 # ─────────────────────────────────────────────────────────────────
 apiVersion: apps/v1
 kind: Deployment
@@ -25,7 +23,7 @@ spec:
 
       containers:
         - name: fastcrowdvision
-          image: <DOCKERHUB_USER>/fastcrowdvision:<TAG>
+          image: ghcr.io/josiepierr/fastcrowdvision:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

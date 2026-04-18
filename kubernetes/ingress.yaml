@@ -1,15 +1,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # kubernetes/ingress.yaml
 # Expose l'API publiquement via l'Ingress du SSP Cloud (Traefik + cert-manager)
+#    URL finale sera :
+#       https://fastcrowdvision.user-pmakamwe.lab.sspcloud.fr
 #
-# ⚠️  Remplacer <IDEP> par votre identifiant Onyxia.
-#     Votre namespace est toujours de la forme :  user-<IDEP>
-#     Votre URL finale sera :
-#       https://fastcrowdvision.user-<IDEP>.lab.sspcloud.fr
-#
-# Comment trouver votre <IDEP> :
-#   datalab.sspcloud.fr → Mon compte → le namespace affiché dans la section
-#   Kubernetes, ou visible dans le kubeconfig téléchargé.
 # ──────────────────────────────────────────────────────────────────────────────
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -26,10 +20,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - fastcrowdvision.user-<IDEP>.lab.sspcloud.fr
+        - fastcrowdvision.user-pmakamwe.lab.sspcloud.fr
       secretName: fastcrowdvision-tls
   rules:
-    - host: fastcrowdvision.user-<IDEP>.lab.sspcloud.fr
+    - host: fastcrowdvision.user-pmakamwe.lab.sspcloud.fr
       http:
         paths:
           - path: /
