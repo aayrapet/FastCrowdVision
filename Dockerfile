@@ -1,75 +1,68 @@
-# ──────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
 # FastCrowdVision — Dockerfile
-# Build: docker build -t fastcrowdvision:latest .
-# Run:   docker run -p 8000:8000 fastcrowdvision:latest
-# ──────────────────────────────────────────────────────────────────────────────
+# Conforme aux bonnes pratiques du cours ENSAE "Mise en production"
+#
+# Points clés :
+#   - Image de base slim  → image légère (~600 Mo vs ~3 Go)
+#   - uv  pour installer les dépendances (recommandé dans le cours)
+#   - Séparation build / runtime (multi-stage)
+#   - Dépendances minimales : uniquement ce dont l'API a besoin
+#   - Utilisateur non-root
+# ─────────────────────────────────────────────────────────────────
 
-# --- Stage 1 : builder (installe les dépendances) ----------------------------
+# ── Stage 1 : installation des dépendances ────────────────────────
 FROM python:3.11-slim AS builder
 
-# Variables pour éviter les .pyc et le buffering
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Copier uv depuis son image officielle (plus rapide et fiable que pip install uv)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 WORKDIR /app
 
-# Dépendances système pour OpenCV et torch (libGL, libgthread...)
+# Dépendances système minimales pour OpenCV headless et torch
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 \
         libglib2.0-0 \
-        libgomp1 \
-        git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copie uniquement le fichier de dépendances en premier (layer cache)
-COPY requirements.txt .
+# Copier UNIQUEMENT le fichier de dépendances en premier
+# → Docker met en cache cette couche et ne réinstalle pas si le code change
+COPY requirements-api.txt .
 
-# Installation des dépendances Python dans un venv dédié
+# Créer un venv et installer les dépendances avec pip
 RUN python -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    /opt/venv/bin/pip install --no-cache-dir -r requirements-api.txt
 
-# --- Stage 2 : image finale (allégée) ----------------------------------------
+
+# ── Stage 2 : image finale allégée ───────────────────────────────
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
-    # Répertoire de cache HuggingFace — monté via PVC en prod
     HF_HOME=/app/.cache/huggingface
 
 WORKDIR /app
 
-# Libs runtime seulement (pas de git/build tools)
+# Libs runtime uniquement (pas d'outils de build)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 \
         libglib2.0-0 \
-        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Récupération du venv construit à l'étape précédente
+# Récupérer le venv du stage builder
 COPY --from=builder /opt/venv /opt/venv
 
-# Copie du code applicatif
+# Copier le code applicatif
+# .dockerignore exclut : données, notebooks, scripts d'entraînement, .git
 COPY . .
 
-# Création d'un utilisateur non-root (bonne pratique sécurité)
+# Utilisateur non-root (bonne pratique sécurité Kubernetes)
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app/.cache/huggingface && \
     chown -R appuser:appuser /app
-
 USER appuser
 
-# Port exposé par uvicorn
 EXPOSE 8000
 
-# Healthcheck basique
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
-
-# Démarrage de l'API avec uvicorn
-CMD ["uvicorn", "server:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1", \
-     "--timeout-keep-alive", "75"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]

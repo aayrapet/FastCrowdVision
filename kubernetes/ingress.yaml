@@ -1,35 +1,35 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # kubernetes/ingress.yaml
-# Expose l'API publiquement via l'Ingress du SSP Cloud
+# Expose l'API publiquement via l'Ingress du SSP Cloud (Traefik + cert-manager)
 #
-# Remplacer user-pmakamwe-ensae par votre namespace Onyxia (ex: user-votreuser)
-# L'URL finale sera : https://fastcrowdvision.user-pmakamwe-ensae.lab.sspcloud.fr
+# ⚠️  Remplacer <IDEP> par votre identifiant Onyxia.
+#     Votre namespace est toujours de la forme :  user-<IDEP>
+#     Votre URL finale sera :
+#       https://fastcrowdvision.user-<IDEP>.lab.sspcloud.fr
+#
+# Comment trouver votre <IDEP> :
+#   datalab.sspcloud.fr → Mon compte → le namespace affiché dans la section
+#   Kubernetes, ou visible dans le kubeconfig téléchargé.
 # ──────────────────────────────────────────────────────────────────────────────
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: fastcrowdvision
   annotations:
-    # TLS géré automatiquement par cert-manager (déjà configuré sur SSP Cloud)
-    kubernetes.io/ingress.class: nginx
+    # SSP Cloud utilise Traefik comme ingress controller (pas nginx)
+    kubernetes.io/ingress.class: traefik
+    # TLS Let's Encrypt géré par cert-manager (déjà installé sur le cluster)
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    # Taille max de l'upload (vidéos pouvant être volumineuses)
-    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
-    # Timeout élevé pour le WebSocket de détection long
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    # Activation du support WebSocket
-    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_set_header Upgrade $http_upgrade;
-      proxy_set_header Connection "upgrade";
+    # Support WebSocket (nécessaire pour /ws/detect)
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
 spec:
   tls:
     - hosts:
-        - fastcrowdvision.user-pmakamwe-ensae.lab.sspcloud.fr
+        - fastcrowdvision.user-<IDEP>.lab.sspcloud.fr
       secretName: fastcrowdvision-tls
   rules:
-    - host: fastcrowdvision.user-pmakamwe-ensae.lab.sspcloud.fr
+    - host: fastcrowdvision.user-<IDEP>.lab.sspcloud.fr
       http:
         paths:
           - path: /
