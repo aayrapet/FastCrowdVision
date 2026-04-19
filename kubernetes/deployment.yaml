@@ -9,6 +9,8 @@ metadata:
     app: fastcrowdvision
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: fastcrowdvision
@@ -20,6 +22,8 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
 
       containers:
         - name: fastcrowdvision
@@ -41,27 +45,30 @@ spec:
               cpu: "2"
               memory: "4Gi"
 
-          # Attend que le modèle soit chargé (jusqu'à 3 min)
+          # Attend que le modèle soit chargé (jusqu'à 10 min)
           startupProbe:
             httpGet:
               path: /health
               port: 8000
-            failureThreshold: 18
+            failureThreshold: 60
             periodSeconds: 10
+            timeoutSeconds: 5
 
           livenessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 10
+            initialDelaySeconds: 120
             periodSeconds: 30
+            timeoutSeconds: 5
 
           readinessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 5
+            initialDelaySeconds: 20
             periodSeconds: 10
+            timeoutSeconds: 5
 
           volumeMounts:
             - name: hf-cache
