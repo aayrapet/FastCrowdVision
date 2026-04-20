@@ -82,4 +82,4 @@ spec:
             claimName: fastcrowdvision-hf-cache
         - name: tmp-dir
           emptyDir:
-            sizeLimit: 2Gi
+            sizeLimit: 2Gi  
