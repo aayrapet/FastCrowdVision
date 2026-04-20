@@ -141,7 +141,6 @@ async function uploadVideo(file) {
 function startDetection() {
   if (!sessionId) return;
 
-  // build WebSocket URL from the current page location
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   const wsUrl = `${protocol}//${window.location.host}/ws/detect`;
   ws = new WebSocket(wsUrl);
@@ -150,8 +149,6 @@ function startDetection() {
     detectionStatus.textContent = "Active — traitement en cours...";
     startDetectionBtn.disabled = true;
     stopDetectionBtn.disabled = false;
-
-    // send session config to the server to start processing
     ws.send(JSON.stringify({
       session_id: sessionId,
       score_thr: Number(scoreThresholdInput.value),
@@ -160,36 +157,29 @@ function startDetection() {
   };
 
   let lastFrameTime = null;
+
   ws.onmessage = (event) => {
     const now = performance.now();
-    const data = JSON.parse(event.data);
-    if (data.type === "detection") {
-      if (lastFrameTime) {
-        const fps = 1000 / (now - lastFrameTime);
-        console.log(`Throughput: ${fps.toFixed(1)} frames/s`);
-      }
-      lastFrameTime = now;
-    const data = JSON.parse(event.data);
+    const data = JSON.parse(event.data);   // ← un seul parse
 
     if (data.type === "metadata") {
-      // server tells us the video FPS and total frames
       videoMeta = data;
       return;
     }
 
     if (data.type === "detection") {
-      // server processed a frame — seek the video to that time and draw boxes
-      if (videoMeta) {
-        video.currentTime = data.time;
+      // mesure du throughput
+      if (lastFrameTime) {
+        const fps = 1000 / (now - lastFrameTime);
+        console.log(`Throughput: ${fps.toFixed(1)} frames/s`);
       }
+      lastFrameTime = now;
 
+      if (videoMeta) video.currentTime = data.time;
       drawDetections(data);
-
-      // update counters
       currentCount.textContent = data.current_count;
       totalUnique.textContent = data.total_unique;
 
-      // update progress
       if (videoMeta && videoMeta.total_frames > 0) {
         const pct = Math.round((data.frame / videoMeta.total_frames) * 100);
         progressInfo.textContent = `Image ${data.frame} / ${videoMeta.total_frames} (${pct}%)`;
@@ -198,8 +188,6 @@ function startDetection() {
     }
 
     if (data.type === "done") {
-      // server finished processing the entire video — reset UI so user can
-      // upload a new video without reloading the page
       detectionStatus.textContent = "Terminé";
       totalUnique.textContent = data.total_unique;
       progressInfo.textContent = "Terminé";
@@ -218,8 +206,6 @@ function startDetection() {
   };
 
   ws.onclose = () => {
-    // CHANGED: don't overwrite "Terminé" status, and don't re-enable start
-    // button — user needs to upload a new video first
     if (detectionStatus.textContent !== "Terminé") {
       detectionStatus.textContent = "Connexion fermée";
       startDetectionBtn.disabled = !sessionId;
