@@ -10,7 +10,23 @@ The model detects **3 classes** from the WiderPeople dataset: pedestrians, rider
 
 The trained model is available on HuggingFace: [aayrapet/SsdFastCrowdVision](https://huggingface.co/aayrapet/SsdFastCrowdVision)
 
+
+## Get video for testing 
+
+
+Access the video and upload it to website you will do in next steps: 
+
+
+https://minio.lab.sspcloud.fr/aayrapetyan/FastCrowdVision/datasets/20260416_121332.mp4
+
+
 > **Important — SSP Cloud limitation:** The SSP Cloud reverse-proxy blocks WebSocket connections. Even if the connection works and the uploading is possible, since video detection relies entirely on WebSocket streaming, the detection **will not work** when accessed through `https://fastcrowdvision.lab.sspcloud.fr`. So we propose 3 alternatives how to run project and get good results.
+
+You can still access it with : 
+
+`https://fastcrowdvision.lab.sspcloud.fr`
+
+
 
 ## Network Setup
 
@@ -73,13 +89,6 @@ FastCrowdVision/
 ---
 
 
-## Get video
-
-
-Access the video and upload it to website you will do in next steps: 
-
-
-https://minio.lab.sspcloud.fr/aayrapetyan/FastCrowdVision/datasets/20260416_121332.mp4
 
 
 ## Running the application locally
