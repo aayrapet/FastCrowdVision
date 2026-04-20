@@ -3,17 +3,22 @@
 # Pipeline CI/CD — conforme au cours ENSAE "Mise en production"
 #
 # Reproduit exactement le schéma du cours :
-#   push sur une branche → build image Docker → push sur Docker Hub
+# Build image Docker puis push sur le registre
 #
 # Secrets GitHub à configurer :
 #   DOCKERHUB_USERNAME : votre identifiant Docker Hub
 #   DOCKERHUB_TOKEN    : Access Token Docker Hub
 #                        (hub.docker.com → Account Settings → Security)
+# KUBECONFIG_SSP : kubeconfig SSP Cloud encodé en base64
 # ─────────────────────────────────────────────────────────────────
 name: Build & Deploy FastCrowdVision
 
 on:
   push:
+branches:
+  - main
+tags:
+  - "v*"
 
 jobs:
   docker:
@@ -51,4 +56,3 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          

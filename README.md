@@ -3,7 +3,7 @@ Implementing vision algorithms for human detection on mobile devices.
 
 
 
-for inference uvicorn server:app --reload
+for inference uvicorn server:app --reload 
 
 ## Setup
 ```
