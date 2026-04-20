@@ -12,7 +12,9 @@ from torchvision.transforms import v2
 import os
 import yaml
 import time
+import logging
 
+logger=logging.getLogger(__name__)
 # project root = folder containing this file
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -42,7 +44,7 @@ def load_ssd_model(device):
         device=device,
     ).to(device)
 
-    # dummy optimizer — load_model() requires one to restore checkpoint state
+
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0005)
 
     # download weights from HuggingFace (cached locally after first download)
@@ -55,7 +57,8 @@ def load_ssd_model(device):
     model, _, _, max_map, _ = load_model(weights_path, device, model, optimizer)
     model.eval()
     model.phase = "test"
-    print(f"Model loaded — mAP on WiderPeople: {max_map}")
+    logger.info("Model loaded — mAP on WiderPeople: %s", max_map)
+
 
     # load class names (1: pedestrians, 2: riders, 3: partially-visible persons)
     wider_yaml = os.path.join(project_root, "datasets", "WiderPeople", "widerpeople.yaml")
@@ -100,6 +103,7 @@ def detect_frame(model, pil_image, transform, device, score_thr=0.25):
     topk[:, [1, 3]] *= H
 
     elapsed = time.perf_counter() - t0
-    print(f"[inference] {elapsed*1000:.1f} ms")
+    logger.info("[inference] %.1f ms", elapsed * 1000)
+
 
     return topk.cpu().numpy()

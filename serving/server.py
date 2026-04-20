@@ -4,7 +4,7 @@
 #
 # Start with:  uvicorn server:app --reload
 # Then open:   http://localhost:8000
-
+import logging 
 import os
 import uuid
 import asyncio
@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from norfair import Tracker, Detection
 
 from serving.inference import load_ssd_model, detect_frame
-
+logger = logging.getLogger(__name__)
 app = FastAPI()
 @app.get("/health")
 def health():
@@ -44,7 +44,11 @@ def startup():
     global model, config, transform, device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, config, transform = load_ssd_model(device)
-    print("Server ready — model loaded on", device)
+ 
+    logger.info(f"Server ready — model loaded on {device}")
+
+
+
 
 
 MAX_VIDEO_DURATION_SEC=40

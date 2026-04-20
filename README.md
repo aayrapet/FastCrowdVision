@@ -1,131 +1,143 @@
 # FastCrowdVision
 
-> Détection et comptage de personnes en temps réel sur vidéo, à partir d'un modèle SSD léger (SSDLite + MobileNetV3) entraîné sur le dataset WiderPeople.
+> Real-time people detection and counting on video, powered by a lightweight SSD model (SSDLite + MobileNetV3) trained on the WiderPeople dataset.
 
-## Contexte et objectif
+## Context and objective
 
-FastCrowdVision est un projet MLOps de bout en bout : entraînement d'un détecteur d'objets optimisé pour les appareils mobiles, exposition via une API FastAPI avec interface web, conteneurisation Docker et déploiement sur le SSP Cloud (Kubernetes).
+FastCrowdVision is an end-to-end MLOps project: training an object detector optimized for mobile/edge devices, serving it through a FastAPI + WebSocket API with a web interface, containerizing with Docker, and deploying on Kubernetes (SSP Cloud).
 
-Le modèle détecte **5 classes** issues du dataset WiderPeople : piétons, cyclistes, personnes partiellement visibles, régions ignorées et foules. L'architecture SSDLite + MobileNetV3 est optimisée pour tourner sur CPU.
+The model detects **3 classes** from the WiderPeople dataset: pedestrians, riders, partially-visible persons The SSDLite + MobileNetV3 architecture is optimized to run on CPU. 
 
-Le modèle entraîné est disponible sur HuggingFace : [aayrapet/SsdFastCrowdVision](https://huggingface.co/aayrapet/SsdFastCrowdVision)
+The trained model is available on HuggingFace: [aayrapet/SsdFastCrowdVision](https://huggingface.co/aayrapet/SsdFastCrowdVision)
 
-L'application est déployée et accessible à : **https://fastcrowdvision.lab.sspcloud.fr**
+> **Important — SSP Cloud limitation:** The SSP Cloud reverse-proxy blocks WebSocket connections. Even if the connection works and the uploading is possible, since video detection relies entirely on WebSocket streaming, the detection **will not work** when accessed through `https://fastcrowdvision.lab.sspcloud.fr`. You must run it locally instead (see below).
 
 ---
 
-## Architecture du projet
+## Project structure
 
 ```
 FastCrowdVision/
 ├── .github/workflows/
-│   └── docker-deploy.yml        # Pipeline CI/CD : build + push image Docker
+│   └── docker-deploy.yml        # CI/CD pipeline: build + push Docker image
 ├── argocd/
-│   └── application.yaml         # Manifest ArgoCD pour déploiement GitOps
-├── config/                      # Fichiers YAML de configuration des backbones SSD
+│   └── application.yaml         # ArgoCD manifest for GitOps deployment
+├── config/                      # YAML backbone configuration files for SSD
 ├── datasets/
-│   ├── WiderPeople/             # Scripts téléchargement WiderPeople (Kaggle / S3)
-│   └── voc/                     # Scripts téléchargement VOC2007 (Kaggle / S3)
-├── kubernetes/                  # Manifestes Kubernetes (deployment, service, ingress, pvc)
-├── model/                       # Architecture SSD et composants
+│   ├── WiderPeople/             # Download scripts for WiderPeople (Kaggle / S3)
+│   └── voc/                     # Download scripts for VOC2007 (Kaggle / S3)
+├── kubernetes/                  # Kubernetes manifests (deployment, service, ingress, pvc)
+├── model/                       # SSD architecture and components
 │   ├── ssd.py                   #   SSD / SSDLite
-│   ├── mobilenetv2.py           #   Backbone MobileNetV2
-│   ├── mobilenetv3.py           #   Backbone MobileNetV3
-│   ├── detection.py             #   Post-traitement NMS
+│   ├── mobilenetv2.py           #   MobileNetV2 backbone
+│   ├── mobilenetv3.py           #   MobileNetV3 backbone
+│   ├── detection.py             #   NMS post-processing
 │   ├── priorbox.py              #   Anchor boxes
-│   ├── l2norm.py                #   L2 normalisation
-│   └── utils.py                 #   Fonctions utilitaires (matching, decode, etc.)
-├── training/                    # Pipeline d'entraînement
-│   ├── train.py                 #   Boucle d'entraînement
-│   ├── eval.py                  #   Évaluation mAP + chargement de modèle
-│   ├── multiloss.py             #   Fonction de perte multi-tâche
-│   ├── dataloader.py            #   DataLoader PyTorch
-│   ├── transforms.py            #   Transformations image (train / test)
-│   ├── multigpusetup.py         #   Setup DDP multi-GPU
-│   └── SsdTrainingPipelineVOC2007.py  # Script d'entraînement CLI
-├── serving/                     # API de détection (ce que le Docker exécute)
+│   ├── l2norm.py                #   L2 normalization
+│   └── utils.py                 #   Utility functions (matching, decode, etc.)
+├── training/                    # Training pipeline
+│   ├── train.py                 #   Training loop
+│   ├── eval.py                  #   mAP evaluation + model loading
+│   ├── multiloss.py             #   Multi-task loss function
+│   ├── dataloader.py            #   PyTorch DataLoader
+│   ├── transforms.py            #   Image transforms (train / test)
+│   ├── multigpusetup.py         #   DDP multi-GPU setup
+│   └── SsdTrainingPipelineVOC2007.py  # CLI training script
+├── serving/                     # Detection API (what the Docker image runs)
 │   ├── server.py                #   FastAPI + WebSocket
-│   ├── inference.py             #   Chargement du modèle et détection par frame
-│   └── draw_inference.py        #   Visualisation des inférences
-├── scripts/                     # Outils CLI autonomes
-│   └── SsdFastCrowdVision.py    #   Inférence sur image + mesure FPS
-├── website/                     # Frontend statique (HTML/CSS/JS) servi par FastAPI
-├── tests/                       # Tests unitaires (backbone, SSD forward, HNM)
+│   ├── inference.py             #   Model loading and per-frame detection
+│   └── draw_inference.py        #   Inference visualization
+├── scripts/                     # Standalone CLI tools
+│   └── SsdFastCrowdVision.py    #   Image inference + FPS benchmark
+├── website/                     # Static frontend (HTML/CSS/JS) served by FastAPI
+├── tests/                       # Unit tests (backbone, SSD forward, HNM)
 ├── requirements/
-│   ├── requirements.txt         #   Dépendances complètes (entraînement + dev)
-│   └── requirements-api.txt     #   Dépendances minimales (API / inférence)
-├── Dockerfile                   # Image multi-stage (builder + runtime slim)
+│   ├── requirements.txt         #   Full dependencies (training + dev)
+│   └── requirements-api.txt     #   Minimal dependencies (API / inference only)
+├── Dockerfile                   # Multi-stage image (builder + runtime slim)
 ├── .dockerignore
 ├── .env.example
-├── pyproject.toml               # Configuration linter (ruff)
+├── pyproject.toml               # Linter configuration (ruff)
 └── README.md
 ```
 
 ---
 
-## Installation et lancement local
 
-### Prérequis
+## Get video
+
+
+Access the video and upload it to website you will do in next steps: 
+
+
+https://minio.lab.sspcloud.fr/aayrapetyan/FastCrowdVision/datasets/20260416_121332.mp4
+
+
+## Running the application locally
+
+Because SSP Cloud blocks WebSocket traffic, you need to run FastCrowdVision on your own machine. There are two options:
+
+### Option A — Install from source
+
+#### Prerequisites
 
 - Python 3.11+
-- (Optionnel) GPU CUDA pour l'entraînement
-
-### 1. Cloner le dépôt
+- (Optional) CUDA GPU for training
 
 ```bash
 git clone https://github.com/aayrapet/FastCrowdVision.git
 cd FastCrowdVision
-```
-
-### 2. Configurer l'environnement
-
-```bash
 python -m venv .venv
-source .venv/bin/activate      # Windows : .venv\Scripts\activate
-pip install -r requirements/requirements.txt
-```
-
-### 3. Configurer les variables d'environnement pour le training
-
-```bash
-cp .env.example .env
-```
-
-Édite `.env` et renseigne tes clés WandB (que pour le training):
-
-```
-WANDB_API_KEY=<ta_clé_wandb>
-ENTITY=<ton_entity_wandb>
-PROJECT=<nom_du_projet_wandb>
-```
-
-### 4. Lancer l'API en local (en inférence)
-
-```bash
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -r requirements/requirements-api.txt
 uvicorn serving.server:app --reload
 ```
 
-Ouvre ensuite [http://localhost:8000](http://localhost:8000), uploade une vidéo et lance la détection.
+Then open [http://localhost:8000](http://localhost:8000), upload a video and start detection.
+
+### Option B — Run with Docker
+
+You can either build the image yourself:
+
+```bash
+docker build -t fastcrowdvision .
+docker run -p 8000:8000 fastcrowdvision
+```
+
+Or pull and run the pre-built image directly from GitHub Container Registry:
+
+```bash
+docker run -d \
+  --name fastcrowdvision \
+  -p 8000:8000 \
+  -e HF_HOME=/app/.cache/huggingface \
+  -v hf-cache:/app/.cache/huggingface \
+  ghcr.io/josiepierr/fastcrowdvision:latest
+```
+
+The `-v hf-cache:...` volume caches the model weights locally so they are only downloaded once.
+
+The API is then accessible at [http://localhost:8000](http://localhost:8000).
 
 ---
 
-## Utilisation de l'API
+## API endpoints
 
-| Endpoint | Méthode | Description |
+| Endpoint | Method | Description |
 |---|---|---|
-| `GET /health` | HTTP | Vérifie que le serveur et le modèle sont prêts |
-| `POST /upload` | HTTP | Upload une vidéo, retourne un `session_id` |
-| `WS /ws/detect` | WebSocket | Détection frame par frame, résultats en streaming JSON |
+| `GET /health` | HTTP | Check that the server and model are ready |
+| `POST /upload` | HTTP | Upload a video, returns a `session_id` |
+| `WS /ws/detect` | WebSocket | Frame-by-frame detection, results streamed as JSON |
 
-### Exemple d'appel `/upload`
+### Example `/upload` call
 
 ```bash
 curl -X POST http://localhost:8000/upload \
-  -F "file=@ma_video.mp4"
-# Retourne : {"session_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
+  -F "file=@my_video.mp4"
+# Returns: {"session_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"}
 ```
 
-Le client WebSocket envoie ensuite la configuration :
+The WebSocket client then sends the configuration:
 
 ```json
 {
@@ -135,7 +147,7 @@ Le client WebSocket envoie ensuite la configuration :
 }
 ```
 
-Et reçoit pour chaque frame traitée :
+And receives for each processed frame:
 
 ```json
 {
@@ -151,78 +163,95 @@ Et reçoit pour chaque frame traitée :
 }
 ```
 
-> **Astuce performance :** Sans GPU, utilise `frame_skip=2` ou `frame_skip=3` dans l'interface pour traiter 1 frame sur 3 et accélérer la détection.
+> **Performance tip:** Without a GPU, set `frame_skip=2` or `frame_skip=3` in the web interface to process every 3rd frame and speed up detection.
 
 ---
 
-## Lancement avec Docker
+## Training
+
+Training requires downloading the dataset first, then running the training pipeline.
+
+### 1. Download the data
+
+Data is stored on S3 (SSP Cloud) and on Kaggle — code/data separation following MLOps best practices.
 
 ```bash
-# Build de l'image
-docker build -t fastcrowdvision .
-
-# Lancement
-docker run -p 8000:8000 fastcrowdvision
-```
-
-L'API est accessible sur [http://localhost:8000](http://localhost:8000).
-
----
-
-## Entraînement
-
-Les données sont stockées sur S3 (SSP Cloud) et sur Kaggle — séparation code/données conforme aux bonnes pratiques MLOps.
-
-```bash
-# Depuis S3 (SSP Cloud)
+# From S3 (SSP Cloud)
 python datasets/WiderPeople/s3/download.py
 python datasets/voc/s3/download.py
 
-# Ou depuis Kaggle
+# Or from Kaggle
 python datasets/WiderPeople/kaggle/first_download.py
+python datasets/voc/kaggle/first_download.py
 ```
 
-Lancer l'entraînement :
+### 2. Configure WandB (metric tracking)
 
 ```bash
-python training/SsdTrainingPipelineVOC2007.py
+cp .env.example .env
 ```
 
-Le suivi des métriques (loss, mAP) est assuré par WandB. Assure-toi que `.env` est bien configuré.
+Edit `.env` and fill in your WandB credentials:
+
+```
+WANDB_API_KEY=<your_wandb_key>
+ENTITY=<your_wandb_entity>
+PROJECT=<your_wandb_project>
+```
+
+### 3. Launch training
+
+```bash
+python training/SsdTrainingPipelineVOC2007.py \
+    'train-images_dir' \
+    'train-label_dir' \
+    'val-images_dir' \
+    'val-label_dir' \
+    'mobilenetv3large' \
+    nb_classes \
+    'ssd_voc2007_mv3large_aug' \
+    --optimizer "adam" \
+    --N_epochs 160 \
+    --lr_schedule_epochs 156 170
+```
+
+
+
+Metrics (loss, mAP) are tracked in WandB throughout training, you can also restart training from last epoch, see more in details **SsdTrainingPipelineVOC2007**
 
 ---
 
-## CI/CD et déploiement
+## CI/CD and deployment
 
-### Pipeline CI/CD
+### CI/CD pipeline
 
-Le fichier `.github/workflows/docker-deploy.yml` déclenche automatiquement sur chaque push (toutes branches) :
+The `.github/workflows/docker-deploy.yml` workflow triggers automatically on every push (all branches):
 
-1. Build de l'image Docker
-2. Push sur Docker Hub avec le tag correspondant à la branche
-3. Le tag `latest` est réservé aux pushs sur `main`
+1. Builds the Docker image
+2. Pushes to Docker Hub with a tag matching the branch name
+3. The `latest` tag is only applied on pushes to `main`
 
-**Secrets GitHub à configurer :**
+**Required GitHub Secrets:**
 
 | Secret | Description |
 |---|---|
-| `DOCKERHUB_USERNAME` | Identifiant Docker Hub |
-| `DOCKERHUB_TOKEN` | Access Token Docker Hub (hub.docker.com → Account Settings → Security) |
+| `DOCKERHUB_USERNAME` | Docker Hub username |
+| `DOCKERHUB_TOKEN` | Docker Hub Access Token (hub.docker.com > Account Settings > Security) |
 
-### Déploiement sur SSP Cloud
+### Deployment on SSP Cloud
 
-Après chaque build CI, redéployer le pod depuis le terminal SSP Cloud :
+After each CI build, redeploy the pod from the SSP Cloud terminal:
 
 ```bash
 kubectl rollout restart deployment/fastcrowdvision
 kubectl rollout status deployment/fastcrowdvision
 ```
 
-### GitOps avec ArgoCD
+### GitOps with ArgoCD
 
-Le fichier `argocd/application.yaml` définit l'application ArgoCD configurée pour surveiller automatiquement le dossier `kubernetes/` du repo avec synchronisation automatique (prune + self-heal).
+The `argocd/application.yaml` file defines an ArgoCD application configured to watch the `kubernetes/` folder in this repo with automatic sync (prune + self-heal).
 
-> **Note :** L'accès au namespace `argocd` du cluster SSP Cloud est restreint aux admins de la plateforme. Le déploiement continu est donc assuré manuellement via `kubectl rollout restart` après chaque build CI.
+> **Note:** Access to the `argocd` namespace on the SSP Cloud cluster is restricted to platform admins. Continuous deployment is therefore handled manually via `kubectl rollout restart` after each CI build.
 
 ---
 
@@ -232,15 +261,15 @@ Le fichier `argocd/application.yaml` définit l'application ArgoCD configurée p
 pytest tests/
 ```
 
-Les tests couvrent : le forward pass SSD, les backbones MobileNetV2/V3, et le Hard Negative Mining.
+Tests cover: SSD forward pass, MobileNetV2/V3 backbones, and Hard Negative Mining.
 
 ---
 
-## Références
+## References
 
 - [SSD: Single Shot MultiBox Detector](https://arxiv.org/abs/1512.02325)
 - [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)
 - [Searching for MobileNetV3](https://arxiv.org/abs/1905.02244)
 - [Squeeze-and-Excitation Networks](https://arxiv.org/abs/1709.01507)
 - [amdegroot/ssd.pytorch](https://github.com/amdegroot/ssd.pytorch)
-- [Cours ENSAE — Mise en production](https://ensae-reproductibilite.github.io/slides)
+- [ENSAE course — Putting models into production](https://ensae-reproductibilite.github.io/slides)
