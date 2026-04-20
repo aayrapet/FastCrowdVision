@@ -1,0 +1,22 @@
+[tool.ruff]
+line-length = 88
+# E = erreurs de style PEP8
+# F = erreurs logiques (variables inutilisées, imports manquants)
+# W = warnings
+select = ["E", "F", "W"]
+
+# Dossiers à ignorer
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "datasets",
+    "models/__init__.py",
+]
+
+# E501 = ligne trop longue (géré par line-length)
+ignore = ["E501"]
+
+[tool.ruff.per-file-ignores]
+# Dans les tests, imports non utilisés parfois intentionnels
+"tests/*" = ["F401", "F811"]
