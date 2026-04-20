@@ -5,6 +5,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fastcrowdvision
+  namespace: user-pmakamwe
   labels:
     app: fastcrowdvision
 spec:
