@@ -80,16 +80,16 @@ cd FastCrowdVision
 ```bash
 python -m venv .venv
 source .venv/bin/activate      # Windows : .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements/requirements.txt
 ```
 
-### 3. Configurer les variables d'environnement
+### 3. Configurer les variables d'environnement pour le training
 
 ```bash
 cp .env.example .env
 ```
 
-Édite `.env` et renseigne tes clés WandB :
+Édite `.env` et renseigne tes clés WandB (que pour le training):
 
 ```
 WANDB_API_KEY=<ta_clé_wandb>
@@ -97,7 +97,7 @@ ENTITY=<ton_entity_wandb>
 PROJECT=<nom_du_projet_wandb>
 ```
 
-### 4. Lancer l'API en local
+### 4. Lancer l'API en local (en inférence)
 
 ```bash
 uvicorn server:app --reload
