@@ -4,7 +4,7 @@ from torchvision.models import MobileNet_V3_Large_Weights, MobileNet_V3_Small_We
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from mobilenetv3 import MobileNetV3Large, MobileNetV3Small
+from model.mobilenetv3 import MobileNetV3Large, MobileNetV3Small
 
 
 def test_mobilenetv3_structure():

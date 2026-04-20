@@ -1,4 +1,4 @@
-from utils import center_to_corner, decode
+from model.utils import center_to_corner, decode
 from torchvision.ops import nms
 import torch
 import torch.nn as nn

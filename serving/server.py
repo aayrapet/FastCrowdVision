@@ -18,7 +18,7 @@ from fastapi import FastAPI, WebSocket, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from norfair import Tracker, Detection
 
-from inference import load_ssd_model, detect_frame
+from serving.inference import load_ssd_model, detect_frame
 
 app = FastAPI()
 @app.get("/health")
@@ -35,7 +35,7 @@ device = None
 # maps session_id → path of the uploaded temp video file
 video_sessions: dict[str, str] = {}
 
-project_root = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 @app.on_event("startup")

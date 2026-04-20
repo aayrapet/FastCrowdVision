@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from multiloss import MultiLoss
-from eval import evaluation
-from ssd import SSD
+from training.multiloss import MultiLoss
+from training.eval import evaluation
+from model.ssd import SSD
 from torchmetrics.detection import MeanAveragePrecision
 from torch.nn.parallel import DistributedDataParallel as DDP
 import wandb
