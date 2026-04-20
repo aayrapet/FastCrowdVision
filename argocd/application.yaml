@@ -11,7 +11,7 @@ spec:
     path: kubernetes
   destination:
     server: https://kubernetes.default.svc
-    namespace: user-<IDEP>
+    namespace: user-pmakamwe
   syncPolicy:
     automated:
       prune: true
