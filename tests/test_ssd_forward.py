@@ -8,12 +8,12 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from ssd import SSD, SSDLite
-from l2norm import L2norm
+from model.ssd import SSD, SSDLite
+from model.l2norm import L2norm
 from torchvision import models
 from torchvision.models import VGG16_Weights, MobileNet_V2_Weights, MobileNet_V3_Large_Weights, MobileNet_V3_Small_Weights
-from mobilenetv2 import MobileNetV2
-from mobilenetv3 import MobileNetV3Large, MobileNetV3Small
+from model.mobilenetv2 import MobileNetV2
+from model.mobilenetv3 import MobileNetV3Large, MobileNetV3Small
 
 CONFIG_DIR = os.path.join(os.path.dirname(__file__), "..", "config")
 BATCH = 2

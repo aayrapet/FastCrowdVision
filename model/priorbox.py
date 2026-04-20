@@ -1,8 +1,8 @@
 
-from utils import calculate_anchor_w_h1,calculate_anchor_w_h2,calculate_sk
-from utils import normalised_anchor_coords,corner_to_center_scalar
+from model.utils import calculate_anchor_w_h1,calculate_anchor_w_h2,calculate_sk
+from model.utils import normalised_anchor_coords,corner_to_center_scalar
 import math as mt
-from utils import center_to_corner
+from model.utils import center_to_corner
 import torch 
 class AnchorBoxes():
     def __init__(self,config):

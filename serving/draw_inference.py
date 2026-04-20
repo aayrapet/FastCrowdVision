@@ -1,5 +1,5 @@
 import torch
-from transforms import means, stds
+from training.transforms import means, stds
 from PIL import Image
 from torchvision.transforms import v2
 from torchvision.utils import draw_bounding_boxes

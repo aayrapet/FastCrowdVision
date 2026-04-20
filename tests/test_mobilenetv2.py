@@ -5,7 +5,7 @@ from torchvision.models import MobileNet_V2_Weights
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from mobilenetv2 import MobileNetV2
+from model.mobilenetv2 import MobileNetV2
 
 
 @pytest.mark.parametrize("width_mult", [1.0])

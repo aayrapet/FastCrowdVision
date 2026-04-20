@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from utils import _make_divisible
+from model.utils import _make_divisible
 
 class SqueezeExcitationBlock(nn.Module):
     def __init__(self, input_size, factor):

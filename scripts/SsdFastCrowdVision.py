@@ -1,24 +1,26 @@
 import torch
 import time 
 from huggingface_hub import hf_hub_download
-from mobilenetv3 import MobileNetV3Large
-from ssd import SSDLite
-from transforms import test_val_transform
-from eval import load_model,predict
+from model.mobilenetv3 import MobileNetV3Large
+from model.ssd import SSDLite
+from training.transforms import test_val_transform
+from training.eval import load_model,predict
 import argparse
 from PIL import Image
 from torchvision.transforms import v2
 import os
-from draw_inference import draw_boxes_with_labels
+from serving.draw_inference import draw_boxes_with_labels
 
-
+"""
+this script to test on images directly , measure fps, but you will need to download data
+"""
 
 import yaml
 
 transform = v2.Compose(
                 test_val_transform               
 )
-project_root = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 #get names of labels
 wider_dir=os.path.join(project_root, "datasets", "WiderPeople","widerpeople.yaml")

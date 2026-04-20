@@ -1,0 +1,21 @@
+
+# Requirements ONLY for inference, not training, which requires data
+torch
+torchvision
+
+# Vision & traitement image
+pillow
+numpy>=1.26,<2.2
+opencv-python-headless
+
+# Modèle & poids
+huggingface_hub
+pyyaml
+
+# API
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Tracking
+norfair

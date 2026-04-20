@@ -4,17 +4,17 @@
 import torch
 import numpy as np
 from huggingface_hub import hf_hub_download
-from mobilenetv3 import MobileNetV3Large
-from ssd import SSDLite
-from transforms import test_val_transform
-from eval import load_model
+from model.mobilenetv3 import MobileNetV3Large
+from model.ssd import SSDLite
+from training.transforms import test_val_transform
+from training.eval import load_model
 from torchvision.transforms import v2
 import os
 import yaml
 import time
 
 # project root = folder containing this file
-project_root = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def load_ssd_model(device):

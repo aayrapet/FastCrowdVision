@@ -1,9 +1,9 @@
-from priorbox import AnchorBoxes
+from model.priorbox import AnchorBoxes
 import yaml
 import torch
 import torch.nn as nn
 import torch.nn.init as init
-from detection import Detection
+from model.detection import Detection
 
 
 class SSD(nn.Module):

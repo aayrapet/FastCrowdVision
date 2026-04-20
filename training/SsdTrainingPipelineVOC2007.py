@@ -1,9 +1,9 @@
 import yaml
-from ssd import SSD, SSDLite
-from l2norm import L2norm
-from multigpusetup import ddp_setup
+from model.ssd import SSD, SSDLite
+from model.l2norm import L2norm
+from training.multigpusetup import ddp_setup
 from torch.distributed import init_process_group, destroy_process_group
-from train import train
+from training.train import train
 import torch.multiprocessing as mp
 import torch
 import torch.nn as nn
@@ -11,8 +11,8 @@ import torch.nn.functional as F
 from torchvision import models
 from torchvision.models import VGG16_Weights
 import argparse
-from train import load_model
-from dataloader import DataGeneralLoader,DataSSD300
+from training.eval import load_model
+from training.dataloader import DataGeneralLoader,DataSSD300
 
 import glob
 
@@ -280,7 +280,7 @@ if __name__ == "__main__":
 
     elif args.backbone == "mobilenetv2":
         from torchvision.models import MobileNet_V2_Weights
-        from mobilenetv2 import MobileNetV2
+        from model.mobilenetv2 import MobileNetV2
         weights = MobileNet_V2_Weights.DEFAULT
         state_dict = weights.get_state_dict()
         
@@ -295,7 +295,7 @@ if __name__ == "__main__":
 
     elif args.backbone == "mobilenetv3large":
         from torchvision.models import MobileNet_V3_Large_Weights
-        from mobilenetv3 import MobileNetV3Large
+        from model.mobilenetv3 import MobileNetV3Large
         weights = MobileNet_V3_Large_Weights.DEFAULT
         state_dict = weights.get_state_dict()
         model = MobileNetV3Large(0.1, 1000, 1280)
@@ -307,7 +307,7 @@ if __name__ == "__main__":
         backbone=model.features[:-1]
     elif args.backbone == "mobilenetv3small":
         from torchvision.models import MobileNet_V3_Small_Weights
-        from mobilenetv3 import MobileNetV3Small
+        from model.mobilenetv3 import MobileNetV3Small
         weights = MobileNet_V3_Small_Weights.DEFAULT
         state_dict = weights.get_state_dict()
         model = MobileNetV3Small(0.1, 1000, 1024)

@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from utils import matching
+from model.utils import matching
 
 
 def HNM_mine(classifications_reshaped, labels_reshaped):
