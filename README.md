@@ -18,45 +18,47 @@ L'application est déployée et accessible à : **https://fastcrowdvision.lab.ss
 
 ```
 FastCrowdVision/
-├── .github/
-│   └── workflows/
-│       └── docker-deploy.yml    # Pipeline CI/CD : build + push image Docker
+├── .github/workflows/
+│   └── docker-deploy.yml        # Pipeline CI/CD : build + push image Docker
 ├── argocd/
 │   └── application.yaml         # Manifest ArgoCD pour déploiement GitOps
 ├── config/                      # Fichiers YAML de configuration des backbones SSD
-│   ├── ssdlite_mobilenetv2.yaml
-│   ├── ssdlite_mobilenetv3large.yaml
-│   ├── ssdlite_mobilenetv3small.yaml
-│   └── ssdlite_vgg.yaml
 ├── datasets/
 │   ├── WiderPeople/             # Scripts téléchargement WiderPeople (Kaggle / S3)
 │   └── voc/                     # Scripts téléchargement VOC2007 (Kaggle / S3)
 ├── kubernetes/                  # Manifestes Kubernetes (deployment, service, ingress, pvc)
-├── models/                      # Package Python (__init__.py)
-├── tests/                       # Tests unitaires (backbone, SSD forward, HNM)
+├── model/                       # Architecture SSD et composants
+│   ├── ssd.py                   #   SSD / SSDLite
+│   ├── mobilenetv2.py           #   Backbone MobileNetV2
+│   ├── mobilenetv3.py           #   Backbone MobileNetV3
+│   ├── detection.py             #   Post-traitement NMS
+│   ├── priorbox.py              #   Anchor boxes
+│   ├── l2norm.py                #   L2 normalisation
+│   └── utils.py                 #   Fonctions utilitaires (matching, decode, etc.)
+├── training/                    # Pipeline d'entraînement
+│   ├── train.py                 #   Boucle d'entraînement
+│   ├── eval.py                  #   Évaluation mAP + chargement de modèle
+│   ├── multiloss.py             #   Fonction de perte multi-tâche
+│   ├── dataloader.py            #   DataLoader PyTorch
+│   ├── transforms.py            #   Transformations image (train / test)
+│   ├── multigpusetup.py         #   Setup DDP multi-GPU
+│   └── SsdTrainingPipelineVOC2007.py  # Script d'entraînement CLI
+├── serving/                     # API de détection (ce que le Docker exécute)
+│   ├── server.py                #   FastAPI + WebSocket
+│   ├── inference.py             #   Chargement du modèle et détection par frame
+│   └── draw_inference.py        #   Visualisation des inférences
+├── scripts/                     # Outils CLI autonomes
+│   └── SsdFastCrowdVision.py    #   Inférence sur image + mesure FPS
 ├── website/                     # Frontend statique (HTML/CSS/JS) servi par FastAPI
-├── .dockerignore
-├── .env.example                 # Variables d'environnement à copier dans .env
-├── .gitignore
+├── tests/                       # Tests unitaires (backbone, SSD forward, HNM)
+├── requirements/
+│   ├── requirements.txt         #   Dépendances complètes (entraînement + dev)
+│   └── requirements-api.txt     #   Dépendances minimales (API / inférence)
 ├── Dockerfile                   # Image multi-stage (builder + runtime slim)
-├── LICENSE
+├── .dockerignore
+├── .env.example
 ├── pyproject.toml               # Configuration linter (ruff)
-├── README.md
-├── requirements.txt             # Dépendances complètes (entraînement + API)
-├── requirements-api.txt         # Dépendances minimales (API / inférence uniquement)
-├── server.py                    # API FastAPI + WebSocket de détection
-├── inference.py                 # Chargement du modèle et détection par frame
-├── train.py                     # Boucle d'entraînement
-├── dataloader.py                # DataLoader PyTorch
-├── ssd.py                       # Architecture SSD
-├── mobilenetv2.py               # Backbone MobileNetV2
-├── mobilenetv3.py               # Backbone MobileNetV3
-├── multiloss.py                 # Fonction de perte multi-tâche
-├── detection.py                 # Post-traitement des détections
-├── eval.py                      # Évaluation mAP
-├── transforms.py                # Transformations image (train / test)
-├── utils.py                     # Fonctions utilitaires
-└── draw_inference.py            # Visualisation des inférences
+└── README.md
 ```
 
 ---
@@ -100,7 +102,7 @@ PROJECT=<nom_du_projet_wandb>
 ### 4. Lancer l'API en local (en inférence)
 
 ```bash
-uvicorn server:app --reload
+uvicorn serving.server:app --reload
 ```
 
 Ouvre ensuite [http://localhost:8000](http://localhost:8000), uploade une vidéo et lance la détection.
@@ -183,7 +185,7 @@ python datasets/WiderPeople/kaggle/first_download.py
 Lancer l'entraînement :
 
 ```bash
-python train.py
+python training/SsdTrainingPipelineVOC2007.py
 ```
 
 Le suivi des métriques (loss, mAP) est assuré par WandB. Assure-toi que `.env` est bien configuré.
