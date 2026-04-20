@@ -1,0 +1,85 @@
+# ─────────────────────────────────────────────────────────────────
+# kubernetes/deployment.yaml
+# ─────────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastcrowdvision
+  labels:
+    app: fastcrowdvision
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: fastcrowdvision
+  template:
+    metadata:
+      labels:
+        app: fastcrowdvision
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        fsGroupChangePolicy: "OnRootMismatch"
+
+      containers:
+        - name: fastcrowdvision
+          image: ghcr.io/josiepierr/fastcrowdvision:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+
+          env:
+            - name: HF_HOME
+              value: /app/.cache/huggingface
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "2Gi"
+            limits:
+              cpu: "4"
+              memory: "4Gi"
+
+          # Attend que le modèle soit chargé (jusqu'à 10 min)
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            failureThreshold: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /app/.cache/huggingface
+            - name: tmp-dir
+              mountPath: /tmp
+
+      volumes:
+        - name: hf-cache
+          persistentVolumeClaim:
+            claimName: fastcrowdvision-hf-cache
+        - name: tmp-dir
+          emptyDir:
+            sizeLimit: 2Gi

@@ -1,0 +1,19 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# kubernetes/service.yaml
+# Expose l'API FastCrowdVision en interne au cluster
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastcrowdvision
+  labels:
+    app: fastcrowdvision
+spec:
+  selector:
+    app: fastcrowdvision
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: ClusterIP

@@ -86,8 +86,19 @@ input[type="file"] {
   width: 100%;
 }
 
+/* ADDED: highlight the total unique count so it stands out */
 .status-panel p {
   margin: 6px 0;
+}
+
+.status-panel #totalUnique {
+  font-size: 1.3em;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.status-panel #currentCount {
+  font-weight: 600;
 }
 
 .video-wrapper {
@@ -113,6 +124,4 @@ input[type="file"] {
   pointer-events: none;
 }
 
-.hidden-canvas {
-  display: none;
-}
+/* REMOVED: .hidden-canvas — no longer needed (server reads frames via OpenCV) */

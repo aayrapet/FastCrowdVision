@@ -1,0 +1,15 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# kubernetes/pvc.yaml
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fastcrowdvision-hf-cache
+  labels:
+    app: fastcrowdvision
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi             # ~1.5 Go pour les poids + marge
