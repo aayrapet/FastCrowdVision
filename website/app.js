@@ -159,7 +159,16 @@ function startDetection() {
     }));
   };
 
+  let lastFrameTime = null;
   ws.onmessage = (event) => {
+    const now = performance.now();
+    const data = JSON.parse(event.data);
+    if (data.type === "detection") {
+      if (lastFrameTime) {
+        const fps = 1000 / (now - lastFrameTime);
+        console.log(`Throughput: ${fps.toFixed(1)} frames/s`);
+      }
+      lastFrameTime = now;
     const data = JSON.parse(event.data);
 
     if (data.type === "metadata") {

@@ -11,6 +11,7 @@ from eval import load_model
 from torchvision.transforms import v2
 import os
 import yaml
+import time
 
 # project root = folder containing this file
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -74,6 +75,7 @@ def detect_frame(model, pil_image, transform, device, score_thr=0.25):
     Coordinates are in pixels (original image size).
     Returns empty (0, 6) array if no detections pass the threshold.
     """
+    t0 = time.perf_counter()
     W, H = pil_image.size
 
     # transform PIL image to 300x300 normalized tensor, add batch dim
@@ -96,5 +98,8 @@ def detect_frame(model, pil_image, transform, device, score_thr=0.25):
     # scale normalized [0,1] box coordinates to pixel coordinates
     topk[:, [0, 2]] *= W
     topk[:, [1, 3]] *= H
+
+    elapsed = time.perf_counter() - t0
+    print(f"[inference] {elapsed*1000:.1f} ms")
 
     return topk.cpu().numpy()

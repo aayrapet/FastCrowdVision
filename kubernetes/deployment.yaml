@@ -42,7 +42,7 @@ spec:
               cpu: "500m"
               memory: "2Gi"
             limits:
-              cpu: "2"
+              cpu: "4"
               memory: "4Gi"
 
           # Attend que le modèle soit chargé (jusqu'à 10 min)
