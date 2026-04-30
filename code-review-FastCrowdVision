@@ -41,13 +41,18 @@ Quelques points qui méritent d'être soulignés :
 
 **1. Versions des dépendances non épinglées**
 
-Dans `requirements/requirements.txt` et `requirements-api.txt`, la quasi-totalité des packages sont listés sans version (`torch`, `fastapi`, `uvicorn`, `pillow`, `huggingface_hub`…). Seul `numpy` a une contrainte. Sans versions fixes, une réinstallation dans quelques mois peut donner des résultats différents voire casser le projet.
+📄 `requirements/requirements.txt` — lignes 1-21
+📄 `requirements/requirements-api.txt` — lignes 3-21
+
+Dans `requirements/requirements.txt` et `requirements-api.txt`, la quasi-totalité des packages sont listés sans version (`torch`, `fastapi`, `uvicorn`, `pillow`, `huggingface_hub`…). Seul `numpy` a une contrainte. Sans versions fixes, une réinstallation dans quelques mois peut donner des résultats différents voire casser le proje - particulièrement risqué pour `torch` et `torchvision` qui ont des APIs qui évoluent.
 
 Suggestion : épingler toutes les versions (`pip freeze > requirements-locked.txt`) ou utiliser `uv lock` pour générer un lockfile.
 
 ---
 
 **2. Ruff et pytest absents de la CI**
+
+📄 `.github/workflows/docker-deploy.yml` — après la ligne 22 (`actions/checkout@v4`)
 
 `ruff` est correctement configuré dans `pyproject.toml`, et des tests existent dans `tests/` — c'est très bien. Mais ni l'un ni l'autre ne sont exécutés dans `.github/workflows/docker-deploy.yml`. Un code non conforme ou cassé peut donc être mergé et buildé sans alerte.
 
@@ -64,6 +69,8 @@ Suggestion : ajouter avant le step de build Docker :
 ---
 
 **3. WandB utilisé à la place de MLflow**
+
+📄 `training/train.py` — lignes 84-118
 
 Le tracking des métriques avec WandB est bien fait (logs loss/mAP, reprise d'entraînement via `wandb_run_id`). Cependant, le cours demande explicitement l'utilisation de **MLflow**. Je n'ai pas l'impression que WandB joue pas ce rôle de la même façon.
 
@@ -85,9 +92,17 @@ Dans `server.py`, le contenu du fichier est chargé intégralement en mémoire :
 content = await file.read()
 ```
 
-Sans limite de taille, une vidéo très lourde peut saturer la mémoire. 
+Sans limite de taille, une vidéo très lourde peut saturer la mémoire de Kubernetes. 
 
 Suggestion : ajouter une limite de taille.
+
+```python
+MAX_UPLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
+
+content = await file.read(MAX_UPLOAD_SIZE + 1)
+if len(content) > MAX_UPLOAD_SIZE:
+    raise HTTPException(status_code=413, detail="Fichier trop volumineux (max 200 MB)")
+```
 
 ---
 
