@@ -12,25 +12,23 @@ import tempfile
 
 import cv2
 import numpy as np
-import torch
 from PIL import Image
 from fastapi import FastAPI, WebSocket, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from norfair import Tracker, Detection
 
-from serving.inference import load_ssd_model, detect_frame
+from serving.inference import load_ssd_model_onnx, detect_frame_onnx
 logger = logging.getLogger(__name__)
 app = FastAPI()
 @app.get("/health")
 def health():
     """Endpoint utilisé par le HEALTHCHECK Docker et les sondes Kubernetes."""
-    return {"status": "ok", "model_loaded": model is not None}
+    return {"status": "ok", "model_loaded": session is not None}
 
 # --- globals: loaded once at startup, shared across all requests ---
-model = None
+session = None
 config = None
 transform = None
-device = None
 
 # maps session_id → path of the uploaded temp video file
 video_sessions: dict[str, str] = {}
@@ -40,12 +38,11 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 @app.on_event("startup")
 def startup():
-    """Called once when uvicorn starts. Loads the SSD model into memory."""
-    global model, config, transform, device
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model, config, transform = load_ssd_model(device)
- 
-    logger.info(f"Server ready — model loaded on {device}")
+    """Called once when uvicorn starts. Loads the ONNX SSD model into memory."""
+    global session, config, transform
+    session, config, transform = load_ssd_model_onnx()
+
+    logger.info("Server ready — ONNX model loaded")
 
 
 
@@ -134,7 +131,7 @@ async def detect_ws(websocket: WebSocket):
             pil_image = Image.fromarray(frame_rgb)
 
             # run SSD detection on this frame
-            detections_np = detect_frame(model, pil_image, transform, device, score_thr)
+            detections_np = detect_frame_onnx(session, pil_image, transform, score_thr)
 
             # convert SSD detections to norfair Detection objects
             norfair_dets = []

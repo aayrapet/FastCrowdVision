@@ -11,6 +11,9 @@ opencv-python-headless
 # Modèle & poids
 huggingface_hub
 pyyaml
+onnx
+onnxscript
+onnxruntime
 
 # API
 fastapi

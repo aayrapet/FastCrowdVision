@@ -1,5 +1,6 @@
-# inference.py — Import-safe model loading and per-frame detection for the server.
-# Separates model setup from CLI/argparse concerns in SsdFastCrowdVision.py.
+# defining and loading models from hugging face : using pytorch and onnx (u will have load_ssd_model using pytorch model )
+# qnd load_ssd_model_onnx loading of onnx model , benchmarking (time) is done in scripts\benchmark_onnx_vs_pytorch.py
+
 
 import torch
 import numpy as np
@@ -14,7 +15,7 @@ import yaml
 import time
 import logging
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 # project root = folder containing this file
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -69,6 +70,64 @@ def load_ssd_model(device):
     transform = v2.Compose(test_val_transform)
 
     return model, config, transform
+
+
+def load_ssd_model_onnx():
+    """Download ONNX model from HuggingFace and load it for inference.
+
+    Returns (session, config_dict, transform).
+    NMS is already inside the ONNX graph (NonMaxSuppression op).
+    """
+    import onnxruntime as ort
+
+    onnx_path = hf_hub_download(
+        repo_id="aayrapet/SsdFastCrowdVision",
+        filename="SSD_FastCrowdVision_v1.onnx",
+    )
+    logger.info("ONNX model loaded from %s", onnx_path)
+
+    providers = (
+        ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        if torch.cuda.is_available()
+        else ["CPUExecutionProvider"]
+    )
+    session = ort.InferenceSession(onnx_path, providers=providers)
+
+    wider_yaml = os.path.join(project_root, "datasets", "WiderPeople", "widerpeople.yaml")
+    with open(wider_yaml) as f:
+        config = yaml.safe_load(f)["names"]
+
+    transform = v2.Compose(test_val_transform)
+
+    return session, config, transform
+
+
+def detect_frame_onnx(session, pil_image, transform, score_thr=0.25):
+    """Run the ONNX SSD on a single PIL image.
+
+    NMS runs inside the ONNX graph. Returns np.ndarray of shape (N, 6) —
+    columns: [x1, y1, x2, y2, score, class] in pixel coordinates.
+    """
+    t0 = time.perf_counter()
+    W, H = pil_image.size
+
+    x = transform(pil_image).unsqueeze(0).numpy()
+    topk = session.run(["detections"], {"image": x})[0]
+    topk = topk.squeeze(0)
+
+    mask = topk[:, 4] > score_thr
+    if not mask.any():
+        return np.empty((0, 6))
+
+    topk = topk[mask]
+
+    topk[:, [0, 2]] *= W
+    topk[:, [1, 3]] *= H
+
+    elapsed = time.perf_counter() - t0
+    logger.info("[onnx-inference] %.1f ms", elapsed * 1000)
+
+    return topk
 
 
 def detect_frame(model, pil_image, transform, device, score_thr=0.25):
