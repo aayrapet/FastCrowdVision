@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class Detection(nn.Module):
     """
-    Performing Non-max Supression on model outputs 
+    Performing Non-max Supression on model outputs thanks to https://github.com/amdegroot/ssd.pytorch
 
     """
     def __init__(self, nb_classes, prob_thr, nms_thr, top_k, variances: list, anchors):

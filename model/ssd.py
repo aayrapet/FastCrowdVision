@@ -148,11 +148,11 @@ class SSD(nn.Module):
     def _hook_fn(self, module, input, output):
         self._hooked_features.append(output)
 
-    def forward(self, X):
-        self._hooked_features = []  
+    def _compute_locs_confs(self, X):
+        """Shared feature extraction used by forward() and ONNX export."""
+        self._hooked_features = []
         layers_for_prediction = []
 
-        # base model
         c5 = self.backbone(X)
         c4 = self._hooked_features[0]
         if self.c4_norm is not None:
@@ -162,14 +162,12 @@ class SSD(nn.Module):
 
         for idx in range(len(self.extras)):
             X = self.extras[idx](X)
-
             layers_for_prediction.append(X)
 
         classifications = []
         for layer_for_predictions, classification_convolution in zip(
             layers_for_prediction, self.classification_convolutions
         ):
-
             x = classification_convolution(layer_for_predictions)
             # then we want to get for all i,j in H*H and all k in 1....K -> p1.....pC probabilities of C classes
             """
@@ -199,24 +197,37 @@ class SSD(nn.Module):
             regressions.append(x.permute(0, 2, 3, 1).contiguous())
 
         # this efficient code was taken from degroot/ssd.pytorch github and is equivalent to my code in comment
-
         loc = torch.cat([o.view(o.size(0), -1) for o in regressions], 1)
         conf = torch.cat([o.view(o.size(0), -1) for o in classifications], 1)
 
-        locs = loc.view(
-            loc.size(0), -1, 4
-        )  # so we get for every image 2D matrix for classification and regression : 8732 anchor boxes and nb coords/classes
+        locs = loc.view(loc.size(0), -1, 4)
         # 8732 anchor boxes are sum of all anchor boxes across all ft map k =  of sum over k (Hk*Hk*ak)
         # for standard ssd300 it is 38*38*4+19*19*6+100*6+25*6+9*4+4
         confs = conf.view(conf.size(0), -1, self.nb_classes)
+        return locs, confs
+
+    def forward(self, X):
+        locs, confs = self._compute_locs_confs(X)
 
         if self.phase == "train":
             return locs, confs
         elif self.phase == "test":
             output = self.detection(confs, locs)
-            return locs, confs,output
+            return locs, confs, output
         else:
             raise ValueError("Unknown phase. Expected train or test ")
+
+
+class SSDOnnxWrapper(nn.Module):
+    """Full inference graph for ONNX export: SSD features + Detection (NMS)."""
+
+    def __init__(self, ssd: SSD):
+        super().__init__()
+        self.ssd = ssd
+
+    def forward(self, x):
+        locs, confs = self.ssd._compute_locs_confs(x)
+        return self.ssd.detection(confs, locs)
 
 
 def xavier(param):

@@ -13,6 +13,7 @@ labels/
 JPEGImages/
 **/[Ii]mages
 test.ipynb
+*.onnx
 # C extensions
 $.pth
 *.so
